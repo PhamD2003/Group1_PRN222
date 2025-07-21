@@ -1,0 +1,96 @@
+﻿@model IEnumerable<Group1_PRN222.Models.Product>
+@{
+    Layout = "_Layout";
+    var selectedCategory = ViewBag.Category as string;
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<div class="container mt-4">
+
+    <h2 class="text-center mb-4">Danh sách sản phẩm</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get">
+                <input type="hidden" name="category" value="@Context.Request.Query["category"]" /> @* Giữ lại category khi search *@
+                <input type="text" name="search" placeholder="Tìm kiếm..." value="@Context.Request.Query["search"]" />
+                <button type="submit">Search</button>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form method="get" asp-action="Index" class="text-end">
+                <input type="hidden" name="search" value="@Context.Request.Query["search"]" /> @* Giữ lại search khi lọc category *@
+                <select name="category" class="form-select w-50 d-inline" onchange="this.form.submit()">
+                    <option value="">Tất cả danh mục</option>
+                    @foreach (var cat in ViewBag.Categories as List<Group1_PRN222.Models.Category>)
+                    {
+                        <option value="@cat.Name" selected="@(selectedCategory == cat.Name)">
+                            @cat.Name
+                        </option>
+                    }
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        @foreach (var item in Model)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <img src="@item.Images" class="card-img-top" style="height: 250px; object-fit: cover;" alt="@item.Title" />
+                    <div class="card-body">
+                        <h5 class="card-title">@item.Title</h5>
+                        <p class="card-text"><strong>Giá:</strong> @item.Price VNĐ</p>
+                        <p class="card-text"><strong>Danh mục:</strong> @item.Category?.Name</p>
+                        @if (item.Inventories != null && item.Inventories.Any()) // Kiểm tra nếu collection không rỗng
+                        {
+                            var firstInventory = item.Inventories.FirstOrDefault(); // Lấy mục Inventory đầu tiên
+                            if (firstInventory != null && firstInventory.Quantity.HasValue) // Kiểm tra nếu Quantity có giá trị
+                            {
+                                <p class="card-text"><strong>Còn hàng:</strong> <span class="text-primary fw-bold">@firstInventory.Quantity.Value</span></p>
+                            }
+                            else
+                            {
+                                <p class="card-text"><strong>Còn hàng:</strong> <span class="text-danger">Không xác định hoặc hết hàng</span></p>
+                            }
+                        }
+                        else
+                        {
+                            <p class="card-text"><strong>Còn hàng:</strong> <span class="text-danger">Không có thông tin tồn kho</span></p>
+                        }
+                        <a href="/Product/Details/@item.Id" class="btn btn-outline-primary">Xem chi tiết</a>
+                        @if (item.Inventories != null && item.Inventories.Any())
+                        {
+                            var productInventory = item.Inventories.FirstOrDefault();
+                            if (productInventory != null && productInventory.Quantity.HasValue && productInventory.Quantity.Value > 0)
+                            {
+                                <form asp-controller="Cart" asp-action="Add" asp-route-productId="@item.Id" method="post" class="d-inline-block ms-2">
+                                    <input type="hidden" name="quantity" value="1" />
+                                    <button type="submit" class="btn btn-sm btn-primary">🛒 Thêm</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-secondary ms-2" disabled>Hết hàng</button>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <nav class="d-flex justify-content-center mt-4">
+        <ul class="pagination">
+            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            {
+                <li class="page-item @(ViewBag.CurrentPage == i ? "active" : "")">
+                    <a class="page-link" href="?page=@i&category=@ViewBag.Category&search=@ViewBag.Search">@i</a> @* Sửa lại để truyền đúng tham số search và category *@
+                </li>
+            }
+        </ul>
+    </nav>
+
+</div>

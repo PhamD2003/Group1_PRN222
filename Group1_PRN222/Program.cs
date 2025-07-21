@@ -1,3 +1,6 @@
+﻿using Group1_PRN222.Models;
+using Microsoft.EntityFrameworkCore;
+
 namespace Group1_PRN222
 {
     public class Program
@@ -8,6 +11,16 @@ namespace Group1_PRN222
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
+            // Cấu hình Session
+            builder.Services.AddDistributedMemoryCache(); // Cần thiết cho IDistributedCache
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30); // Thời gian hết hạn của session
+                options.Cookie.HttpOnly = true; // Cookie chỉ truy cập qua HTTP, không qua client-side script
+                options.Cookie.IsEssential = true; // Cần thiết cho chức năng
+            });
+            builder.Services.AddDbContext<CloneEbayDbContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             var app = builder.Build();
 
@@ -23,7 +36,7 @@ namespace Group1_PRN222
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            app.UseSession();
             app.UseAuthorization();
 
             app.MapControllerRoute(
