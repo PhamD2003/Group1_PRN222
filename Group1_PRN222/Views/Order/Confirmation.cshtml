@@ -1,0 +1,423 @@
+﻿@model Group1_PRN222.Models.OrderTable
+@{
+ViewData["Title"] = "Đặt hàng thành công";
+var payment = Model.Payments.FirstOrDefault();
+var isPayPal = payment?.Method == "PayPal";
+var isCOD = payment?.Method == "COD";
+}
+
+<div class="container mt-4">
+    <!-- Success Header -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8 text-center">
+            <div class="bg-success text-white rounded p-4 mb-4">
+                <div style="font-size: 4rem;">🎉</div>
+                <h2 class="mb-2">Đặt hàng thành công!</h2>
+                <p class="mb-0 fs-5">
+                    Cảm ơn bạn đã mua sắm tại cửa hàng của chúng tôi
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Steps - Completed -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        ✓
+                    </div>
+                    <div class="small mt-2">Giỏ hàng</div>
+                </div>
+                <div class="flex-fill">
+                    <hr class="bg-success" style="height: 2px;">
+                </div>
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        ✓
+                    </div>
+                    <div class="small mt-2">Đặt hàng</div>
+                </div>
+                <div class="flex-fill">
+                    <hr class="bg-success" style="height: 2px;">
+                </div>
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        ✓
+                    </div>
+                    <div class="small mt-2">Hoàn thành</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Order Summary -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📋 Thông tin đơn hàng #@Model.Id</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Mã đơn hàng:</strong> #@Model.Id</p>
+                            <p class="mb-1"><strong>Ngày đặt:</strong> @Model.OrderDate?.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p class="mb-1"><strong>Trạng thái:</strong>
+                                <span class="badge bg-success">@Model.Status</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Tổng tiền:</strong></p>
+                            <p class="fs-4 text-danger fw-bold mb-1">@Model.TotalPrice?.ToString("N0") ₫</p>
+                            @if (payment != null)
+                            {
+                            <p class="mb-1"><strong>Thanh toán:</strong>
+                                <span class="badge bg-@(isPayPal ? "info" : "warning")">
+                                        @(isPayPal ? "PayPal" : "COD")
+                                    </span>
+                            </p>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Delivery Address -->
+                    <div class="border-top pt-3">
+                        <h6>📍 Địa chỉ giao hàng:</h6>
+                        <div class="p-3 bg-light rounded">
+                            <strong>@Model.Address?.FullName</strong><br>
+                            📞 @Model.Address?.Phone<br>
+                            📍 @Model.Address?.Street<br>
+                            @Model.Address?.City, @Model.Address?.Country
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            @if (payment != null)
+            {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-@(isPayPal ? "info" : "warning") text-white">
+                    <h5 class="mb-0">
+                        @if (isPayPal)
+                        {
+                        <span>💳 Thanh toán PayPal</span>
+                        }
+                        else
+                        {
+                        <span>💰 Thanh toán khi nhận hàng (COD)</span>
+                        }
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (isPayPal)
+                    {
+                    <div class="d-flex align-items-center">
+                        <div class="me-3 text-success" style="font-size: 2rem;">✅</div>
+                        <div>
+                            <h6 class="text-success mb-1">Thanh toán thành công!</h6>
+                            <p class="mb-1">Số tiền: <strong>@payment.Amount?.ToString("N0") ₫</strong></p>
+                            <p class="mb-1">Thời gian: @payment.PaidAt?.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                            <small class="text-muted">
+                                🧪 Đây là giao dịch mô phỏng. Không có tiền thật được thu.
+                            </small>
+                        </div>
+                    </div>
+                    }
+                    else
+                    {
+                    <div class="d-flex align-items-center">
+                        <div class="me-3 text-warning" style="font-size: 2rem;">⏳</div>
+                        <div>
+                            <h6 class="text-warning mb-1">Chờ thanh toán khi nhận hàng</h6>
+                            <p class="mb-1">Số tiền cần thanh toán: <strong>@payment.Amount?.ToString("N0") ₫</strong></p>
+                            <p class="mb-1">Vui lòng chuẩn bị tiền mặt khi shipper giao hàng</p>
+                            <small class="text-info">
+                                ℹ️ Bạn có thể kiểm tra hàng trước khi thanh toán
+                            </small>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+            }
+
+            <!-- Next Steps -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">📝 Các bước tiếp theo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>🔔 Thông báo</h6>
+                            <ul class="mb-3">
+                                <li>Email xác nhận đã được gửi</li>
+                                <li>SMS thông báo trạng thái đơn hàng</li>
+                                <li>Thông báo khi hàng được giao</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>🚚 Giao hàng</h6>
+                            <ul class="mb-3">
+                                @if (isCOD)
+                                {
+                                <li>Đơn hàng sẽ được chuẩn bị trong 24h</li>
+                                <li>Thời gian giao hàng: 1-3 ngày</li>
+                                <li>Shipper sẽ liên hệ trước khi giao</li>
+                                }
+                                else
+                                {
+                                <li>Đơn hàng đang được xử lý</li>
+                                <li>Thời gian giao hàng: 1-2 ngày</li>
+                                <li>Mã vận đơn sẽ được cung cấp sớm</li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <strong>💡 Mẹo:</strong>
+                        Bạn có thể theo dõi trạng thái đơn hàng trong mục "Lịch sử đơn hàng"
+                        hoặc liên hệ hotline <strong>1900-123-456</strong> nếu cần hỗ trợ.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="text-center mb-4">
+                <div class="d-flex flex-column gap-3">
+                    <a href="/Order/Details/@Model.Id" class="btn btn-primary btn-lg">
+                        📋 Xem chi tiết đơn hàng
+                    </a>
+                    <a href="/Order/History" class="btn btn-outline-primary">
+                        📂 Lịch sử đơn hàng
+                    </a>
+                    <a href="/Product" class="btn btn-success">
+                        🛍️ Tiếp tục mua sắm
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Order Items -->
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">🛍️ Sản phẩm đã mua</h5>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        @foreach (var item in Model.OrderItems)
+                        {
+                        <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
+                            <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                 class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">@item.Product?.Title</div>
+                                <div class="text-muted small">
+                                    @item.UnitPrice?.ToString("N0") ₫ × @item.Quantity
+                                </div>
+                                <div class="text-primary fw-bold">
+                                    @((item.UnitPrice * item.Quantity)?.ToString("N0")) ₫
+                                </div>
+                            </div>
+                        </div>
+                        }
+                    </div>
+
+                    <!-- Price Summary -->
+                    @{
+                    var itemsTotal = Model.OrderItems.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+                    var shippingFee = (Model.TotalPrice ?? 0) - itemsTotal;
+                    }
+
+                    <div class="border-top pt-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tạm tính:</span>
+                            <span>@itemsTotal.ToString("N0") ₫</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Vận chuyển:</span>
+                            @if (shippingFee > 0)
+                            {
+                            <span>@shippingFee.ToString("N0") ₫</span>
+                            }
+                            else
+                            {
+                            <span class="text-success">Miễn phí</span>
+                            }
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <strong class="fs-5">Tổng cộng:</strong>
+                            <strong class="fs-5 text-danger">@Model.TotalPrice?.ToString("N0") ₫</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Info -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">🆘 Cần hỗ trợ?</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <strong>Hotline:</strong><br>
+                            <a href="tel:1900123456" class="text-decoration-none">
+                                📞 1900-123-456
+                            </a>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Email:</strong><br>
+                            <a href="mailto:support@ebaystore.vn" class="text-decoration-none">
+                                ✉️ support@ebaystore.vn
+                            </a>
+                        </div>
+                        <div>
+                            <strong>Giờ làm việc:</strong><br>
+                            <small class="text-muted">8:00 - 22:00 (Thứ 2 - CN)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Email Reminder Modal -->
+<div class="modal fade" id="emailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">📧 Nhận thông báo email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có muốn nhận email thông báo khi:</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="emailShipping" checked>
+                    <label class="form-check-label" for="emailShipping">
+                        🚚 Đơn hàng được giao đi
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="emailDelivered" checked>
+                    <label class="form-check-label" for="emailDelivered">
+                        📦 Đơn hàng được giao thành công
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="emailPromo">
+                    <label class="form-check-label" for="emailPromo">
+                        🎁 Khuyến mãi và ưu đãi đặc biệt
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-info" data-bs-dismiss="modal">Lưu thiết lập</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Auto show email modal after 5 seconds
+    setTimeout(() => {
+        if (Math.random() > 0.7) { // 30% chance to show
+            const modal = new bootstrap.Modal(document.getElementById('emailModal'));
+            modal.show();
+        }
+    }, 5000);
+
+    // Simple confetti effect without CSS animations
+    function createConfetti() {
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b'];
+
+        for (let i = 0; i < 30; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.style.position = 'fixed';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = '-10px';
+                confetti.style.width = '8px';
+                confetti.style.height = '8px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.borderRadius = '50%';
+                confetti.style.pointerEvents = 'none';
+                confetti.style.zIndex = '9999';
+
+                document.body.appendChild(confetti);
+
+                // Animate falling
+                let position = -10;
+                const fallInterval = setInterval(() => {
+                    position += 5;
+                    confetti.style.top = position + 'px';
+
+                    if (position > window.innerHeight) {
+                        clearInterval(fallInterval);
+                        confetti.remove();
+                    }
+                }, 50);
+            }, i * 100);
+        }
+    }
+
+    // Trigger confetti on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(createConfetti, 500);
+    });
+
+    // Print order function
+    function printOrder() {
+        window.print();
+    }
+
+    // Share order (simple)
+    function shareOrder() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Đã đặt hàng thành công!',
+                text: 'Tôi vừa đặt hàng thành công tại eBay Clone Store',
+                url: window.location.href
+            });
+        } else {
+            // Fallback copy to clipboard
+            navigator.clipboard.writeText(window.location.href);
+
+            // Show notification
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 m-3 alert alert-success';
+            toast.innerHTML = '📋 Đã copy link đơn hàng!';
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 2000);
+        }
+    }
+
+    // Celebration sound effect (optional)
+    function playCelebrationSound() {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUX7Xr8Z9WFQ5Po+PosmMcBzuN0/Hj');
+            audio.play();
+        } catch (e) {
+            // Ignore if audio fails
+        }
+    }
+
+    // Success message with sound
+    setTimeout(() => {
+        playCelebrationSound();
+    }, 1000);
+</script>
+}

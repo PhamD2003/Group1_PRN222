@@ -353,12 +353,12 @@ namespace Group1_PRN222.Controllers
         /// <summary>
         /// GET: /Order/Details/{orderId} - Chi tiết đơn hàng
         /// </summary>
-        public async Task<IActionResult> Details(int orderId)
+        public async Task<IActionResult> Details(int id)
         {
             var userId = GetCurrentUserId();
 
             var order = await _context.OrderTables
-                .Where(o => o.Id == orderId && o.BuyerId == userId)
+                .Where(o => o.Id == id && o.BuyerId == userId)
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                 .ThenInclude(p => p.Category)

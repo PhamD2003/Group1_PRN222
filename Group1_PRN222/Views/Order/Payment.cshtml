@@ -1,0 +1,466 @@
+﻿@model Group1_PRN222.Models.OrderTable
+@{
+    ViewData["Title"] = "Thanh toán đơn hàng";
+    var preselectedMethod = ViewBag.PreselectedMethod as string ?? "PayPal";
+}
+
+<div class="container mt-4">
+    <!-- Progress Steps -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        ✓
+                    </div>
+                    <div class="small mt-2">Giỏ hàng</div>
+                </div>
+                <div class="flex-fill">
+                    <hr class="bg-success" style="height: 2px;">
+                </div>
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        ✓
+                    </div>
+                    <div class="small mt-2">Đặt hàng</div>
+                </div>
+                <div class="flex-fill">
+                    <hr class="bg-success" style="height: 2px;">
+                </div>
+                <div class="text-center flex-fill">
+                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        💳
+                    </div>
+                    <div class="small mt-2 fw-bold">Thanh toán</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Payment Section -->
+        <div class="col-lg-8">
+            <!-- Order Info -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">📋 Thông tin đơn hàng #@Model.Id</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Ngày đặt:</strong> @Model.OrderDate?.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p>
+                                <strong>Trạng thái:</strong>
+                                <span class="badge bg-warning">@Model.Status</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p>
+                                <strong>Tổng tiền:</strong>
+                                <span class="text-danger fs-5 fw-bold">@Model.TotalPrice?.ToString("N0") ₫</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Địa chỉ giao hàng -->
+                    <div class="mt-3">
+                        <h6>📍 Địa chỉ giao hàng:</h6>
+                        <div class="p-2 bg-light rounded">
+                            <strong>@Model.Address?.FullName</strong><br>
+                            📞 @Model.Address?.Phone<br>
+                            📍 @Model.Address?.Street, @Model.Address?.City, @Model.Address?.Country
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">💳 Chọn phương thức thanh toán</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- PayPal Option -->
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod"
+                                       id="paypal" value="PayPal" @(preselectedMethod == "PayPal" ? "checked" : "")>
+                                <label class="form-check-label w-100" for="paypal">
+                                    <div class="payment-option p-3 border rounded">
+                                        <div class="d-flex align-items-center">
+                                            <div class="payment-icon me-3">
+                                                <div class="bg-primary text-white rounded p-2" style="font-size: 1.5rem;">
+                                                    💳
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">PayPal</h6>
+                                                <small class="text-muted">Thanh toán nhanh chóng và bảo mật</small>
+                                                <br><small class="text-warning">🧪 Mô phỏng - Không tính phí</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- COD Option -->
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod"
+                                       id="cod" value="COD" @(preselectedMethod == "COD" ? "checked" : "")>
+                                <label class="form-check-label w-100" for="cod">
+                                    <div class="payment-option p-3 border rounded">
+                                        <div class="d-flex align-items-center">
+                                            <div class="payment-icon me-3">
+                                                <div class="bg-warning text-dark rounded p-2" style="font-size: 1.5rem;">
+                                                    💰
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">Thanh toán khi nhận hàng</h6>
+                                                <small class="text-muted">Trả tiền mặt khi nhận hàng</small>
+                                                <br><small class="text-success">✅ Miễn phí - Không phát sinh thêm chi phí</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Details -->
+                    <div id="paypalDetails" class="payment-details mt-4 @(preselectedMethod != "PayPal" ? "d-none" : "")">
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3" style="font-size: 2rem;">💳</div>
+                                <div>
+                                    <h6 class="fw-bold">PayPal Express Checkout</h6>
+                                    <p class="mb-2">Bạn sẽ được chuyển đến trang PayPal để hoàn tất thanh toán một cách an toàn.</p>
+                                    <ul class="mb-2">
+                                        <li>Bảo mật SSL 256-bit</li>
+                                        <li>Không lưu thông tin thẻ trên hệ thống</li>
+                                        <li>Hỗ trợ Visa, Mastercard, American Express</li>
+                                        <li>Hoàn tiền trong 30 ngày</li>
+                                    </ul>
+                                    <small class="text-warning">
+                                        🧪 <strong>Lưu ý:</strong> Đây là môi trường mô phỏng. Không có giao dịch thật nào được thực hiện.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="codDetails" class="payment-details mt-4 @(preselectedMethod != "COD" ? "d-none" : "")">
+                        <div class="alert alert-warning">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3" style="font-size: 2rem;">🚚</div>
+                                <div>
+                                    <h6 class="fw-bold">Thanh toán khi nhận hàng (COD)</h6>
+                                    <p class="mb-2">Bạn sẽ thanh toán bằng tiền mặt khi nhận hàng từ shipper.</p>
+                                    <ul class="mb-2">
+                                        <li>Vui lòng chuẩn bị đúng số tiền: <strong>@Model.TotalPrice?.ToString("N0") ₫</strong></li>
+                                        <li>Kiểm tra hàng hóa trước khi thanh toán</li>
+                                        <li>Shipper sẽ liên hệ trước khi giao hàng</li>
+                                        <li>Thời gian giao hàng: 1-3 ngày làm việc</li>
+                                    </ul>
+                                    <small class="text-info">
+                                        ℹ️ <strong>Lưu ý:</strong> Đơn hàng COD sẽ được xác nhận và chuẩn bị giao hàng ngay lập tức.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Button -->
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-success btn-lg px-5" onclick="processPayment()" id="paymentBtn">
+                            <span id="paymentBtnText">
+                                <span id="paypalText">💳 Thanh toán với PayPal</span>
+                                <span id="codText" class="d-none">✅ Xác nhận đặt hàng COD</span>
+                            </span>
+                            <span id="paymentSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
+                        </button>
+
+                        <div class="mt-3">
+                            <a href="/Order/Checkout" class="btn btn-outline-secondary">
+                                ← Quay lại chỉnh sửa đơn hàng
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">🛍️ Chi tiết đơn hàng</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Order Items -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-3">Sản phẩm (@Model.OrderItems.Count mặt hàng)</h6>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            @foreach (var item in Model.OrderItems)
+                            {
+                                <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                                    <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                         class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold small">@item.Product?.Title</div>
+                                        <div class="text-muted small">
+                                            @item.UnitPrice?.ToString("N0") ₫ × @item.Quantity
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <strong class="small">@((item.UnitPrice * item.Quantity)?.ToString("N0")) ₫</strong>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Price Summary -->
+                    <div class="border-top pt-3">
+                        @{
+                            var itemsTotal = Model.OrderItems.Sum(i => i.UnitPrice * i.Quantity) ?? 0;
+                            var shippingFee = (Model.TotalPrice ?? 0) - itemsTotal;
+                        }
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tạm tính:</span>
+                            <span class="fw-bold">@itemsTotal.ToString("N0") ₫</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Phí vận chuyển:</span>
+                            @if (shippingFee > 0)
+                            {
+                                <span class="fw-bold">@shippingFee.ToString("N0") ₫</span>
+                            }
+                            else
+                            {
+                                <span class="text-success fw-bold">Miễn phí</span>
+                            }
+                        </div>
+
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong class="fs-5">Tổng cộng:</strong>
+                            <strong class="fs-5 text-danger">@Model.TotalPrice?.ToString("N0") ₫</strong>
+                        </div>
+                    </div>
+
+                    <!-- Security & Guarantee -->
+                    <div class="bg-light p-3 rounded">
+                        <div class="text-center mb-2">
+                            <small class="text-muted">
+                                🔒 Giao dịch được bảo mật bởi SSL 256-bit
+                            </small>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-muted">
+                                ✅ Đảm bảo hoàn tiền 100% nếu có sự cố
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Processing Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div id="processingState">
+                    <div class="mb-3">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                    </div>
+                    <h5>Đang xử lý thanh toán...</h5>
+                    <p class="text-muted">Vui lòng không đóng trang này</p>
+                    <div class="progress mt-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             style="width: 0%" id="progressBar"></div>
+                    </div>
+                </div>
+
+                <div id="successState" class="d-none">
+                    <div class="mb-3">
+                        <div class="text-success" style="font-size: 3rem;">✅</div>
+                    </div>
+                    <h5 class="text-success">Thanh toán thành công!</h5>
+                    <p class="text-muted">Đơn hàng của bạn đã được xác nhận</p>
+                </div>
+
+                <div id="errorState" class="d-none">
+                    <div class="mb-3">
+                        <div class="text-danger" style="font-size: 3rem;">❌</div>
+                    </div>
+                    <h5 class="text-danger">Thanh toán thất bại!</h5>
+                    <p class="text-muted" id="errorMessage">Có lỗi xảy ra trong quá trình thanh toán</p>
+                    <button class="btn btn-primary" onclick="retryPayment()">Thử lại</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentOrderId = @Model.Id;
+        let currentPaymentMethod = '@preselectedMethod';
+
+        // Payment method change handler
+        document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                currentPaymentMethod = this.value;
+                updatePaymentUI();
+            });
+        });
+
+        function updatePaymentUI() {
+            // Update payment details visibility
+            const paypalDetails = document.getElementById('paypalDetails');
+            const codDetails = document.getElementById('codDetails');
+            const paypalText = document.getElementById('paypalText');
+            const codText = document.getElementById('codText');
+
+            if (currentPaymentMethod === 'PayPal') {
+                paypalDetails.classList.remove('d-none');
+                codDetails.classList.add('d-none');
+                paypalText.classList.remove('d-none');
+                codText.classList.add('d-none');
+            } else {
+                paypalDetails.classList.add('d-none');
+                codDetails.classList.remove('d-none');
+                paypalText.classList.add('d-none');
+                codText.classList.remove('d-none');
+            }
+        }
+
+        // Process payment
+        async function processPayment() {
+            const paymentBtn = document.getElementById('paymentBtn');
+            const btnText = document.getElementById('paymentBtnText');
+            const spinner = document.getElementById('paymentSpinner');
+
+            // Disable button and show loading
+            paymentBtn.disabled = true;
+            btnText.textContent = 'Đang xử lý...';
+            spinner.classList.remove('d-none');
+
+            // Show processing modal
+            const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            modal.show();
+
+            // Simulate progress for PayPal
+            if (currentPaymentMethod === 'PayPal') {
+                animateProgress();
+            }
+
+            try {
+                const response = await fetch('/Order/ProcessPayment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        orderId: currentOrderId,
+                        paymentMethod: currentPaymentMethod
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show success state
+                    document.getElementById('processingState').classList.add('d-none');
+                    document.getElementById('successState').classList.remove('d-none');
+
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = result.redirectUrl;
+                    }, 2000);
+
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                // Show error state
+                document.getElementById('processingState').classList.add('d-none');
+                document.getElementById('errorState').classList.remove('d-none');
+                document.getElementById('errorMessage').textContent = error.message;
+            } finally {
+                // Reset button
+                paymentBtn.disabled = false;
+                btnText.innerHTML = currentPaymentMethod === 'PayPal' ?
+                    '<span>💳 Thanh toán với PayPal</span>' :
+                    '<span>✅ Xác nhận đặt hàng COD</span>';
+                spinner.classList.add('d-none');
+            }
+        }
+
+        function animateProgress() {
+            const progressBar = document.getElementById('progressBar');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress > 95) progress = 95;
+                progressBar.style.width = progress + '%';
+            }, 200);
+
+            setTimeout(() => {
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+            }, 1800);
+        }
+
+        function retryPayment() {
+            // Reset modal states
+            document.getElementById('processingState').classList.remove('d-none');
+            document.getElementById('errorState').classList.add('d-none');
+            document.getElementById('successState').classList.add('d-none');
+            document.getElementById('progressBar').style.width = '0%';
+
+            // Close modal and retry
+            bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+            setTimeout(processPayment, 500);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePaymentUI();
+        });
+    </script>
+}
+
+<style>
+    .payment-option {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+        .payment-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+    .form-check-input:checked + .form-check-label .payment-option {
+        border-color: #198754 !important;
+        background: #f8f9fa;
+    }
+
+    .payment-details {
+        transition: all 0.3s ease;
+    }
+
+    .progress {
+        height: 8px;
+    }
+</style>

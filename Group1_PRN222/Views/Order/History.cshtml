@@ -1,0 +1,524 @@
+@model IEnumerable<Group1_PRN222.Models.OrderTable>
+@{
+    ViewData["Title"] = "Lịch sử đơn hàng";
+    var currentPage = ViewBag.CurrentPage ?? 1;
+    var totalPages = ViewBag.TotalPages ?? 1;
+    var totalOrders = ViewBag.TotalOrders ?? 0;
+}
+
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">📂 Lịch sử đơn hàng</h2>
+            <p class="text-muted mb-0">Tổng cộng: @totalOrders đơn hàng</p>
+        </div>
+        <div>
+            <a href="/Product" class="btn btn-success">
+                🛍️ Tiếp tục mua sắm
+            </a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <div style="font-size: 4rem; opacity: 0.5;">📦</div>
+            <h4 class="text-muted">Chưa có đơn hàng nào</h4>
+            <p class="text-muted">Bạn chưa đặt đơn hàng nào. Hãy bắt đầu mua sắm ngay!</p>
+            <a href="/Product" class="btn btn-primary btn-lg">
+                🛍️ Khám phá sản phẩm
+            </a>
+        </div>
+    }
+    else
+    {
+        <!-- Filter & Search -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">📅 Từ ngày</label>
+                        <input type="date" class="form-control" id="fromDate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">📅 Đến ngày</label>
+                        <input type="date" class="form-control" id="toDate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">🔍 Trạng thái</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="Pending">Chờ xử lý</option>
+                            <option value="Confirmed">Đã xác nhận</option>
+                            <option value="Processing">Đang xử lý</option>
+                            <option value="Shipping">Đang giao hàng</option>
+                            <option value="Delivered">Đã giao</option>
+                            <option value="Cancelled">Đã hủy</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="filterOrders()">
+                            🔍 Lọc đơn hàng
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders List -->
+        <div class="row" id="ordersContainer">
+            @foreach (var order in Model)
+            {
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-start border-4 border-@GetStatusColor(order.Status)">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <!-- Order Info -->
+                                <div class="col-lg-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="me-3">
+                                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px; font-size: 1.2rem;">
+                                                📦
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Đơn hàng #@order.Id</h6>
+                                            <small class="text-muted">@order.OrderDate?.ToString("dd/MM/yyyy HH:mm")</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Order Items Preview -->
+                                <div class="col-lg-4">
+                                    <div class="d-flex align-items-center">
+                                        @{
+                                            var firstItems = order.OrderItems.Take(2).ToList();
+                                        }
+                                        <div class="d-flex me-2">
+                                            @foreach (var item in firstItems)
+                                            {
+                                                <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                                     class="rounded border me-1"
+                                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                            }
+                                            @if (order.OrderItems.Count > 2)
+                                            {
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center border"
+                                                     style="width: 40px; height: 40px;">
+                                                    <small class="fw-bold">+@(order.OrderItems.Count - 2)</small>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="small fw-bold">@order.OrderItems.Count sản phẩm</div>
+                                            <div class="small text-muted">
+                                                @string.Join(", ", order.OrderItems.Take(2).Select(i => i.Product?.Title ?? "Unknown"))
+                                                @if (order.OrderItems.Count > 2)
+                                                {
+                                                    <span>...</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Status & Price -->
+                                <div class="col-lg-2 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-@GetStatusColor(order.Status) fs-6 px-3 py-2">
+                                            @GetStatusText(order.Status)
+                                        </span>
+                                    </div>
+                                    <div class="fw-bold text-danger fs-5">
+                                        @order.TotalPrice?.ToString("N0") ₫
+                                    </div>
+                                    @{
+                                        var payment = order.Payments.FirstOrDefault();
+                                    }
+                                    @if (payment != null)
+                                    {
+                                        <small class="text-muted d-block">
+                                            @(payment.Method == "PayPal" ? "💳 PayPal" : "💰 COD")
+                                        </small>
+                                    }
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="col-lg-3">
+                                    <div class="d-flex flex-column gap-2">
+                                        <a href="/Order/Details/@order.Id" class="btn btn-outline-primary btn-sm">
+                                            📋 Xem chi tiết
+                                        </a>
+
+                                        @if (order.Status == "Pending" || order.Status == "Confirmed")
+                                        {
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    onclick="cancelOrder(@order.Id)">
+                                                ❌ Hủy đơn
+                                            </button>
+                                        }
+
+                                        @if (order.Status == "Delivered")
+                                        {
+                                            <a href="/Return/Create/@order.Id" class="btn btn-outline-warning btn-sm">
+                                                🔄 Trả hàng
+                                            </a>
+                                        }
+
+                                        @if (order.ShippingInfos.Any())
+                                        {
+                                            var shipping = order.ShippingInfos.First();
+                                            if (!string.IsNullOrEmpty(shipping.TrackingNumber))
+                                            {
+                                                <button class="btn btn-outline-info btn-sm"
+                                                        onclick="trackOrder('@shipping.TrackingNumber')">
+                                                    🚚 Theo dõi
+                                                </button>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar for some statuses -->
+                            @if (order.Status == "Processing" || order.Status == "Shipping")
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between small text-muted mb-1">
+                                            <span>Tiến độ xử lý</span>
+                                            <span>@GetProgressPercent(order.Status)%</span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-@GetStatusColor(order.Status)"
+                                                 style="width: @GetProgressPercent(order.Status)%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages > 1)
+        {
+            <nav aria-label="Order pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @if (currentPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="?page=@(currentPage - 1)">« Trước</a>
+                        </li>
+                    }
+
+                    @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                    {
+                        <li class="page-item @(i == currentPage ? "active" : "")">
+                            <a class="page-link" href="?page=@i">@i</a>
+                        </li>
+                    }
+
+                    @if (currentPage < totalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="?page=@(currentPage + 1)">Sau »</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
+    }
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">❌ Hủy đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Bạn có chắc chắn muốn hủy đơn hàng <strong id="cancelOrderId"></strong>?</p>
+                <div class="alert alert-warning">
+                    <strong>Lưu ý:</strong>
+                    <ul class="mb-0">
+                        <li>Đơn hàng đã hủy không thể khôi phục</li>
+                        <li>Tiền sẽ được hoàn lại trong 3-5 ngày làm việc (nếu đã thanh toán)</li>
+                        <li>Sản phẩm sẽ được trả lại kho</li>
+                    </ul>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lý do hủy đơn (tùy chọn):</label>
+                    <select class="form-select" id="cancelReason">
+                        <option value="">Chọn lý do...</option>
+                        <option value="changed_mind">Đổi ý không muốn mua</option>
+                        <option value="wrong_item">Đặt nhầm sản phẩm</option>
+                        <option value="found_better_price">Tìm được giá tốt hơn</option>
+                        <option value="delivery_too_long">Thời gian giao hàng quá lâu</option>
+                        <option value="other">Lý do khác</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Giữ đơn hàng</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancelOrder()">Xác nhận hủy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tracking Modal -->
+<div class="modal fade" id="trackingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">🚚 Theo dõi đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <strong>Mã vận đơn: <span id="trackingNumber" class="text-primary"></span></strong>
+                </div>
+                <div id="trackingTimeline">
+                    <!-- Tracking timeline will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Confirmed" => "info",
+            "Processing" => "primary",
+            "Shipping" => "primary",
+            "Delivered" => "success",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Pending" => "⏳ Chờ xử lý",
+            "Confirmed" => "✅ Đã xác nhận",
+            "Processing" => "⚙️ Đang xử lý",
+            "Shipping" => "🚚 Đang giao",
+            "Delivered" => "📦 Đã giao",
+            "Cancelled" => "❌ Đã hủy",
+            _ => "❓ Không xác định"
+        };
+    }
+
+    int GetProgressPercent(string status)
+    {
+        return status switch
+        {
+            "Processing" => 60,
+            "Shipping" => 80,
+            "Delivered" => 100,
+            _ => 0
+        };
+    }
+}
+
+@section Scripts {
+<script>
+    let selectedOrderId = 0;
+
+    // Filter orders
+    function filterOrders() {
+        const fromDate = document.getElementById('fromDate').value;
+        const toDate = document.getElementById('toDate').value;
+        const status = document.getElementById('statusFilter').value;
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (fromDate) params.set('fromDate', fromDate);
+        if (toDate) params.set('toDate', toDate);
+        if (status) params.set('status', status);
+
+        // Reload page with filters
+        window.location.href = '/Order/History?' + params.toString();
+    }
+
+    // Cancel order
+    function cancelOrder(orderId) {
+        selectedOrderId = orderId;
+        document.getElementById('cancelOrderId').textContent = '#' + orderId;
+
+        const modal = new bootstrap.Modal(document.getElementById('cancelOrderModal'));
+        modal.show();
+    }
+
+    async function confirmCancelOrder() {
+        const reason = document.getElementById('cancelReason').value;
+
+        try {
+            const response = await fetch('/Order/Cancel/' + selectedOrderId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    reason: reason
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Close modal and reload page
+                bootstrap.Modal.getInstance(document.getElementById('cancelOrderModal')).hide();
+
+                // Show success message
+                alert('✅ ' + result.message);
+
+                // Reload page
+                window.location.reload();
+            } else {
+                alert('❌ ' + result.message);
+            }
+        } catch (error) {
+            alert('❌ Có lỗi xảy ra: ' + error.message);
+        }
+    }
+
+    // Track order
+    function trackOrder(trackingNumber) {
+        document.getElementById('trackingNumber').textContent = trackingNumber;
+
+        // Mock tracking timeline
+        const timeline = document.getElementById('trackingTimeline');
+        timeline.innerHTML = `
+            <div class="timeline">
+                <div class="timeline-item completed">
+                    <div class="timeline-marker bg-success"></div>
+                    <div class="timeline-content">
+                        <h6>✅ Đơn hàng đã được xác nhận</h6>
+                        <small class="text-muted">Hôm qua, 14:30</small>
+                    </div>
+                </div>
+                <div class="timeline-item completed">
+                    <div class="timeline-marker bg-success"></div>
+                    <div class="timeline-content">
+                        <h6>📦 Đơn hàng đã được đóng gói</h6>
+                        <small class="text-muted">Hôm qua, 16:45</small>
+                    </div>
+                </div>
+                <div class="timeline-item active">
+                    <div class="timeline-marker bg-primary"></div>
+                    <div class="timeline-content">
+                        <h6>🚚 Đang vận chuyển</h6>
+                        <small class="text-muted">Hôm nay, 09:15</small>
+                        <div class="small text-info mt-1">
+                            Dự kiến giao hàng: Ngày mai, 10:00-18:00
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-light"></div>
+                    <div class="timeline-content">
+                        <h6>📍 Giao hàng thành công</h6>
+                        <small class="text-muted">Dự kiến: Ngày mai</small>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('trackingModal'));
+        modal.show();
+    }
+
+    // Auto-refresh every 30 seconds for processing orders
+    setInterval(() => {
+        const processingOrders = document.querySelectorAll('.border-primary, .border-info');
+        if (processingOrders.length > 0) {
+            // Optional: Auto refresh status for active orders
+            console.log('Checking for order status updates...');
+        }
+    }, 30000);
+
+    // Set default date filter (last 30 days)
+    document.addEventListener('DOMContentLoaded', function() {
+        const toDate = document.getElementById('toDate');
+        const fromDate = document.getElementById('fromDate');
+
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+
+        toDate.value = today.toISOString().split('T')[0];
+        fromDate.value = thirtyDaysAgo.toISOString().split('T')[0];
+    });
+</script>
+}
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -18px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-item.completed .timeline-content {
+    border-left-color: #198754;
+}
+
+.timeline-item.active .timeline-content {
+    border-left-color: #0d6efd;
+    background: #e3f2fd;
+}
+
+.card {
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+</style>
