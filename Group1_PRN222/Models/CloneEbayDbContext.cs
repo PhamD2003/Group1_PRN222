@@ -337,6 +337,9 @@ public partial class CloneEbayDbContext : DbContext
             entity.Property(e => e.Price)
                 .HasColumnType("decimal(10, 2)")
                 .HasColumnName("price");
+            entity.Property(p => p.StartPrice)
+                  .HasColumnType("decimal(10,2)");
+
             entity.Property(e => e.SellerId).HasColumnName("sellerId");
             entity.Property(e => e.Title)
                 .HasMaxLength(255)

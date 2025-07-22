@@ -1,0 +1,30 @@
+﻿@model Product
+@{
+    var bids = ViewBag.Bids as List<Bid>;
+}
+<h2>@Model.Title</h2>
+<p>@Model.Description</p>
+<p>Kết thúc: @Model.AuctionEndTime</p>
+
+<h4>Giá hiện tại: @(bids?.FirstOrDefault()?.Amount ?? Model.StartPrice)</h4>
+
+<form method="post" action="/Auction/Bid">
+    <input type="hidden" name="productId" value="@Model.Id" />
+    <input type="number" name="amount" step="1000" required />
+    <button type="submit">Đặt giá</button>
+</form>
+
+<h3>Lịch sử đấu giá</h3>
+@if (bids != null && bids.Count > 0)
+{
+    <ul>
+        @foreach (var b in bids)
+        {
+            <li>@b.Amount VND bởi người dùng ID: @b.BidderId lúc @b.BidTime</li>
+        }
+    </ul>
+}
+else
+{
+    <p>Chưa có ai đặt giá.</p>
+}

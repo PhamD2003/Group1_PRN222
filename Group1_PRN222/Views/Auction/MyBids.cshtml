@@ -1,0 +1,13 @@
+﻿@model List<Bid>
+<h2>Lịch sử đấu giá của tôi</h2>
+<table>
+    <tr><th>Sản phẩm</th><th>Giá</th><th>Thời gian</th></tr>
+    @foreach (var b in Model)
+    {
+        <tr>
+            <td>@b.ProductId</td>
+            <td>@b.Amount</td>
+            <td>@b.BidTime</td>
+        </tr>
+    }
+</table>

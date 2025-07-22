@@ -1,0 +1,11 @@
+﻿@model List<Product>
+<h2>Đấu giá đang diễn ra</h2>
+@foreach (var item in Model)
+{
+    <div>
+        <h4>@item.Title</h4>
+        <p>Giá khởi điểm: @item.StartPrice</p>
+        <p>Kết thúc: @item.AuctionEndTime</p>
+        <a href="/Auction/Details/@item.Id">Xem chi tiết</a>
+    </div>
+}

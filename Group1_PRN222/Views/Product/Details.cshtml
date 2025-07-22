@@ -11,7 +11,16 @@
             <div class="col-md-7">
                 <h2 class="fw-bold">@Model.Title</h2>
                 <p class="text-muted mt-2">@Model.Description</p>
-                <p class="fs-5">💰 <strong class="text-danger">@Model.Price VNĐ</strong></p>
+                @if (Model.IsAuction == true)
+                {
+                    <p class="fs-5">💰 <strong class="text-danger">Giá khởi điểm: @Model.StartPrice?.ToString("N0") VNĐ</strong></p>
+                    <p class="fs-5">🛒 <strong class="text-success">Giá mua ngay: @Model.Price?.ToString("N0") VNĐ</strong></p>
+                }
+                else
+                {
+                    <p class="fs-5">💰 <strong class="text-danger">@Model.Price?.ToString("N0") VNĐ</strong></p>
+                }
+
                 <p>📂 Danh mục: <strong>@Model.Category?.Name</strong></p>
                 @if (Model.Inventories != null && Model.Inventories.Any())
                 {
@@ -38,7 +47,16 @@
                 <div class="mt-4 d-flex gap-3 flex-wrap">
                     @if (Model.IsAuction.HasValue && Model.IsAuction.Value)
 {
-    <a href="/Auction/Bid/@Model.Id" class="btn btn-warning text-white">⚔️ Đặt giá đấu</a>
+                        <form asp-controller="Cart" asp-action="Add" asp-route-productId="@Model.Id" method="post" class="d-inline-block">
+                            <input type="hidden" name="quantity" value="1" />
+                            <button type="submit" class="btn btn-primary">🛒 Thêm vào giỏ hàng</button>
+                        </form>
+                        <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
+                        <form action="/Auction/Bid" method="post" class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="productId" value="@Model.Id" />
+                            <input type="number" name="amount" class="form-control" placeholder="Nhập giá đấu" required min="@Model.StartPrice" step="1000" style="max-width: 150px;" />
+                            <button type="submit" class="btn btn-warning text-white">⚔️ Đặt giá đấu</button>
+                        </form>
 }
 else if (Model.Inventories != null && Model.Inventories.Any())
 {
@@ -49,7 +67,7 @@ else if (Model.Inventories != null && Model.Inventories.Any())
             <input type="hidden" name="quantity" value="1" /> 
             <button type="submit" class="btn btn-primary">🛒 Thêm vào giỏ hàng</button>
         </form>
-        <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
+                            <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
     }
     else
     {

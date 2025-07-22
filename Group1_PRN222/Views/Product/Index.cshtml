@@ -42,7 +42,7 @@
                     <img src="@item.Images" class="card-img-top" style="height: 250px; object-fit: cover;" alt="@item.Title" />
                     <div class="card-body">
                         <h5 class="card-title">@item.Title</h5>
-                        <p class="card-text"><strong>Giá:</strong> @item.Price VNĐ</p>
+                        <p class="card-text"><strong>Giá:</strong> @item.Price?.ToString("N0") VNĐ</p>
                         <p class="card-text"><strong>Danh mục:</strong> @item.Category?.Name</p>
                         @if (item.Inventories != null && item.Inventories.Any()) // Kiểm tra nếu collection không rỗng
                         {

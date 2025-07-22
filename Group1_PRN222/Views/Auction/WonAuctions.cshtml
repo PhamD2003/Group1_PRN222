@@ -1,0 +1,14 @@
+﻿@model List<Product>
+<h2>Sản phẩm bạn đã thắng</h2>
+@foreach (var item in Model)
+{
+    <div>
+        <h4>@item.Id</h4>
+        <p>Mô tả: @item.Description</p>
+        <p>Giá thắng: Context.Bid.Where(b => b.ProductId == item.ProductId).OrderByDescending(b => b.Amount).First().Amount</p>
+        <form method="post" action="/Order/AddAuctionToOrder">
+            <input type="hidden" name="productId" value="@item.Id" />
+            <button type="submit">Thêm vào đơn hàng</button>
+        </form>
+    </div>
+}

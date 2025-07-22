@@ -59,8 +59,37 @@ namespace Group1_PRN222.Controllers
             decimal discount = 0;
             Coupon? appliedCoupon = null;
 
+            string? couponCode = HttpContext.Session.GetString(COUPON_SESSION_KEY);
+            if (!string.IsNullOrEmpty(couponCode))
+            {
+                appliedCoupon = await _context.Coupons.FirstOrDefaultAsync(c => c.Code == couponCode);
+                if (appliedCoupon != null && IsCouponValid(appliedCoupon))
+                {
+                    if (appliedCoupon.ProductId.HasValue)
+                    {
+                        // Giảm giá theo từng sản phẩm cụ thể
+                        var targetItem = cartItems.FirstOrDefault(item => item.ProductId == appliedCoupon.ProductId.Value);
+                        if (targetItem != null)
+                        {
+                            discount = targetItem.TotalPrice * (appliedCoupon.DiscountPercent ?? 0) / 100;
+                        }
+                    }
+                    else
+                    {
+                        // Giảm giá toàn bộ đơn hàng
+                        discount = subtotal * (appliedCoupon.DiscountPercent ?? 0) / 100;
+                    }
+                }
+                else
+                {
+                    // Nếu mã giảm giá không hợp lệ nữa, xoá khỏi session
+                    HttpContext.Session.Remove(COUPON_SESSION_KEY);
+                }
+            }
+
+
             // Lấy thông tin mã giảm giá đã áp dụng (nếu có)
-         
+
 
             ViewBag.CartItems = cartItems;
             ViewBag.Subtotal = subtotal;
