@@ -4,6 +4,7 @@ using Group1_PRN222.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Group1_PRN222.Migrations
 {
     [DbContext(typeof(CloneEbayDbContext))]
-    partial class CloneEbayDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250724013703_AddPendingModelChanges")]
+    partial class AddPendingModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
