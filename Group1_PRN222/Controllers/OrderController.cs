@@ -221,8 +221,7 @@ namespace Group1_PRN222.Controllers
             ProductName = product.Title,
             Quantity = 1,
             Price = product.Price ?? 0,
-             ImageUrl = product.Images
-?.Split(',').FirstOrDefault() ?? string.Empty,
+             ImageUrl = product.Images?.Split(',').FirstOrDefault() ?? string.Empty,
         }
     };
 

@@ -4,6 +4,8 @@
     var selectedCategory = ViewBag.Category as string;
 }
 
+
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 
 <div class="container mt-4">
@@ -19,18 +21,31 @@
             </form>
         </div>
         <div class="col-md-6">
-            <form method="get" asp-action="Index" class="text-end">
-                <input type="hidden" name="search" value="@Context.Request.Query["search"]" /> @* Giữ lại search khi lọc category *@
-                <select name="category" class="form-select w-50 d-inline" onchange="this.form.submit()">
-                    <option value="">Tất cả danh mục</option>
-                    @foreach (var cat in ViewBag.Categories as List<Group1_PRN222.Models.Category>)
-                    {
-                        <option value="@cat.Name" selected="@(selectedCategory == cat.Name)">
-                            @cat.Name
-                        </option>
-                    }
-                </select>
-            </form>
+            <div class="d-flex justify-content-between align-items-end flex-wrap mb-4">
+
+                <!-- Bộ lọc -->
+                <form method="get" class="d-flex align-items-end gap-2">
+                    <input type="hidden" name="search" value="@Context.Request.Query["search"]" />
+
+                    <input type="number" name="minPrice" class="form-control" style="width: 120px;" placeholder="Giá từ" value="@Context.Request.Query["minPrice"]" />
+
+                    <input type="number" name="maxPrice" class="form-control" style="width: 120px;" placeholder="Giá đến" value="@Context.Request.Query["maxPrice"]" />
+
+                    <select name="category" class="form-select" style="width: 160px;">
+                        <option value="">Tất cả</option>
+                        @foreach (var cat in ViewBag.Categories as List<Group1_PRN222.Models.Category>)
+                        {
+                            <option value="@cat.Name" selected="@(ViewBag.Category == cat.Name)">
+                                @cat.Name
+                            </option>
+                        }
+                    </select>
+
+                    <button type="submit" class="btn btn-primary">Lọc</button>
+                </form>
+            </div>
+
+
         </div>
     </div>
 
