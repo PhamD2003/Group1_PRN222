@@ -1,49 +1,53 @@
-﻿using Group1_PRN222.Models;
+﻿using Group1_PRN222.Controllers;
+using Group1_PRN222.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Group1_PRN222
+namespace Group1_PRN222;
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Add services to the container.
+        builder.Services.AddControllersWithViews();
+
+        // Add email sender service
+        builder.Services.AddTransient<IEmailSender, EmailSender>();
+
+        // Cấu hình Session
+        builder.Services.AddDistributedMemoryCache(); // Cần thiết cho IDistributedCache
+        builder.Services.AddSession(options =>
         {
-            var builder = WebApplication.CreateBuilder(args);
+            options.IdleTimeout = TimeSpan.FromMinutes(30); // Thời gian hết hạn của session
+            options.Cookie.HttpOnly = true; // Cookie chỉ truy cập qua HTTP, không qua client-side script
+            options.Cookie.IsEssential = true; // Cần thiết cho chức năng
+        });
+        builder.Services.AddDbContext<CloneEbayDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // Add services to the container.
-            builder.Services.AddControllersWithViews();
-            // Cấu hình Session
-            builder.Services.AddDistributedMemoryCache(); // Cần thiết cho IDistributedCache
-            builder.Services.AddSession(options =>
-            {
-                options.IdleTimeout = TimeSpan.FromMinutes(30); // Thời gian hết hạn của session
-                options.Cookie.HttpOnly = true; // Cookie chỉ truy cập qua HTTP, không qua client-side script
-                options.Cookie.IsEssential = true; // Cần thiết cho chức năng
-            });
-            builder.Services.AddDbContext<CloneEbayDbContext>(options =>
-            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        var app = builder.Build();
 
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-                app.UseHsts();
-            }
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
-            app.UseRouting();
-            app.UseSession();
-            app.UseAuthorization();
-
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
-
-            app.Run();
+        // Configure the HTTP request pipeline.
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Home/Error");
+            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            app.UseHsts();
         }
+
+        app.UseHttpsRedirection();
+        app.UseStaticFiles();
+
+        app.UseRouting();
+        app.UseSession();
+        app.UseAuthorization();
+
+        app.MapControllerRoute(
+            name: "default",
+            pattern: "{controller=Home}/{action=Index}/{id?}");
+
+        app.Run();
     }
 }

@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Identity;
+using System;
 using System.Collections.Generic;
 
 namespace Group1_PRN222.Models;
 
 public partial class User
 {
+    //Commented these properties since it has been provided by IdentityUser
     public int Id { get; set; }
 
     public string? Username { get; set; }
@@ -16,6 +18,10 @@ public partial class User
     public string? Role { get; set; }
 
     public string? AvatarUrl { get; set; }
+
+    public string? EmailConfirmationToken { get; set; }
+
+    public int IsEmailConfirmed { get; set; } = 0;
 
     public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
 
