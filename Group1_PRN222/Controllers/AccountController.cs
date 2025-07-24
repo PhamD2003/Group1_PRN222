@@ -103,8 +103,9 @@ public class AccountController : Controller
             ModelState.AddModelError("", "Please confirm your email before logging in.");
             return View(model);
         }
+        HttpContext.Session.SetInt32("UserId", user.Id);
 
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Index", "Product");
     }
 
     string HashPassword(User model)

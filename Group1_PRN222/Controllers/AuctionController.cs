@@ -30,24 +30,40 @@ namespace Group1_PRN222.Controllers
             return View(product);
         }
 
-        // 3. Đặt giá
+        // 3. Đặt giá đấu
         [HttpPost]
         public IActionResult Bid(int productId, decimal amount)
         {
-            var userId = HttpContext.Session.GetInt32("UserId"); // đảm bảo bạn có lưu UserId khi đăng nhập
+            var userId = HttpContext.Session.GetInt32("UserId");
 
             if (userId == null)
-                return RedirectToAction("Login", "User");
+                return RedirectToAction("Login", "Account");
 
             var product = _context.Products.FirstOrDefault(p => p.Id == productId);
             if (product == null || product.AuctionEndTime <= DateTime.Now)
                 return BadRequest("Sản phẩm không hợp lệ hoặc đã hết hạn");
 
-            var highestBid = _context.Bids.Where(b => b.ProductId == productId).OrderByDescending(b => b.Amount).FirstOrDefault();
-            if (highestBid != null && amount <= highestBid.Amount)
+            var highestBid = _context.Bids
+                .Where(b => b.ProductId == productId)
+                .OrderByDescending(b => b.Amount)
+                .FirstOrDefault();
+
+            // ⚠️ Kiểm tra nếu chưa ai đặt giá → dùng StartPrice
+            if (highestBid == null)
             {
-                TempData["Error"] = "Giá phải cao hơn giá khởi điểm";
-                return RedirectToAction("Details", new { id = productId });
+                if (amount < product.StartPrice)
+                {
+                    TempData["Error"] = $"Giá phải tối thiểu từ giá khởi điểm: {product.StartPrice?.ToString("N0")} VNĐ";
+                    return RedirectToAction("Details", new { id = productId });
+                }
+            }
+            else
+            {
+                if (amount <= highestBid.Amount)
+                {
+                    TempData["Error"] = $"Giá phải cao hơn giá hiện tại: {highestBid.Amount?.ToString("N0")} VNĐ";
+                    return RedirectToAction("Details", new { id = productId });
+                }
             }
 
             var bid = new Bid
@@ -63,6 +79,7 @@ namespace Group1_PRN222.Controllers
 
             return RedirectToAction("Details", new { id = productId });
         }
+
 
 
         // 4. Lịch sử đấu giá của bản thân

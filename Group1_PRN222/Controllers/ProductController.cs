@@ -21,7 +21,7 @@ namespace Group1_PRN222.Controllers
         {
             var query = _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Inventories) // THÊM DÒNG NÀY ĐỂ TẢI DỮ LIỆU TỒN KHO
+                .Include(p => p.Inventories) 
                 .AsQueryable();
 
             // Tìm kiếm
@@ -58,39 +58,32 @@ namespace Group1_PRN222.Controllers
 
 
         // GET: /Product/Details/5
-        public IActionResult Details(int id, int? rating)
+        public IActionResult Details(int id)
         {
             var product = _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Inventories)
                 .Include(p => p.Reviews)
-                .Include(p => p.Inventories) // THÊM DÒNG NÀY ĐỂ TẢI DỮ LIỆU TỒN KHO
                 .FirstOrDefault(p => p.Id == id);
 
             if (product == null) return NotFound();
 
-            // Lọc đánh giá (nếu có tham số rating)
-            if (rating.HasValue)
-            {
-                product.Reviews = product.Reviews
-                    .Where(r => r.Rating == rating.Value)
-                    .ToList();
-            }
-            // Sắp xếp đánh giá để hiển thị mới nhất trước
-            if (product.Reviews != null)
-            {
-                product.Reviews = product.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
-            }
+            var bids = _context.Bids
+                .Where(b => b.ProductId == id)
+                .OrderByDescending(b => b.Amount)
+                .ToList();
 
-            // Sản phẩm tương tự
-            var relatedProducts = _context.Products
-                .Where(p => p.CategoryId == product.CategoryId && p.Id != product.Id)
-                .Include(p => p.Inventories) // CŨNG THÊM DÒNG NÀY CHO SẢN PHẨM TƯƠNG TỰ NẾU BẠN MUỐN HIỂN THỊ TỒN KHO CỦA CHÚNG
+            ViewBag.Bids = bids;
+            ViewBag.CurrentPrice = bids.FirstOrDefault()?.Amount ?? product.StartPrice;
+
+            // ... nếu có Related sản phẩm
+            ViewBag.Related = _context.Products
+                .Where(p => p.CategoryId == product.CategoryId && p.Id != id).Include(p => p.Inventories)
                 .Take(4)
                 .ToList();
 
-            ViewBag.Related = relatedProducts;
-
             return View(product);
         }
+
     }
 }
