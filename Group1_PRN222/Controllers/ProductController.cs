@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System; 
+using System; // Thêm namespace này cho Math.Ceiling
 using System.Linq;
 using System.Threading.Tasks;
 using Group1_PRN222.Models;
@@ -17,14 +17,14 @@ namespace Group1_PRN222.Controllers
         }
 
         // GET: /Product
-        public async Task<IActionResult> Index(string search, string category, decimal? minPrice, decimal? maxPrice, int page = 1, int pageSize = 5)
+        public async Task<IActionResult> Index(string search, string category, int page = 1, int pageSize = 5)
         {
             var query = _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Inventories)
+                .Include(p => p.Inventories) // THÊM DÒNG NÀY ĐỂ TẢI DỮ LIỆU TỒN KHO
                 .AsQueryable();
 
-            // Tìm kiếm theo tiêu đề
+            // Tìm kiếm
             if (!string.IsNullOrEmpty(search))
             {
                 query = query.Where(p => p.Title.Contains(search));
@@ -34,16 +34,6 @@ namespace Group1_PRN222.Controllers
             if (!string.IsNullOrEmpty(category))
             {
                 query = query.Where(p => p.Category.Name == category);
-            }
-
-            // Lọc theo khoảng giá
-            if (minPrice.HasValue)
-            {
-                query = query.Where(p => p.Price >= minPrice.Value);
-            }
-            if (maxPrice.HasValue)
-            {
-                query = query.Where(p => p.Price <= maxPrice.Value);
             }
 
             // Tổng số sản phẩm
@@ -56,20 +46,15 @@ namespace Group1_PRN222.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ViewBag dùng cho view
+            // ViewBag dùng cho phân trang và lọc
             ViewBag.TotalPages = (int)Math.Ceiling((double)totalProducts / pageSize);
             ViewBag.CurrentPage = page;
             ViewBag.Category = category;
             ViewBag.Search = search;
-            ViewBag.MinPrice = minPrice;
-            ViewBag.MaxPrice = maxPrice;
-
-
             ViewBag.Categories = await _context.Categories.ToListAsync();
 
             return View(products);
         }
-
 
 
         // GET: /Product/Details/5
@@ -78,7 +63,7 @@ namespace Group1_PRN222.Controllers
             var product = _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Reviews)
-                .Include(p => p.Inventories) 
+                .Include(p => p.Inventories) // THÊM DÒNG NÀY ĐỂ TẢI DỮ LIỆU TỒN KHO
                 .FirstOrDefault(p => p.Id == id);
 
             if (product == null) return NotFound();
@@ -99,7 +84,7 @@ namespace Group1_PRN222.Controllers
             // Sản phẩm tương tự
             var relatedProducts = _context.Products
                 .Where(p => p.CategoryId == product.CategoryId && p.Id != product.Id)
-                .Include(p => p.Inventories) 
+                .Include(p => p.Inventories) // CŨNG THÊM DÒNG NÀY CHO SẢN PHẨM TƯƠNG TỰ NẾU BẠN MUỐN HIỂN THỊ TỒN KHO CỦA CHÚNG
                 .Take(4)
                 .ToList();
 
