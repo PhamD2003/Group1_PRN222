@@ -105,7 +105,7 @@ public class AccountController : Controller
         HttpContext.Session.SetString("Username", user.Username);
         HttpContext.Session.SetInt32("UserId", user.Id);
 
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Index", "Product");
     }
 
     [HttpPost]
@@ -115,7 +115,7 @@ public class AccountController : Controller
         // Clear all session data
         HttpContext.Session.Clear();
         // Redirect to the login page (or home page as you prefer)
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Index", "Product");
     }
 
     [HttpGet]
