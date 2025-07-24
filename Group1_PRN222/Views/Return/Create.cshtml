@@ -1,0 +1,292 @@
+﻿@{
+    ViewData["Title"] = "Tạo yêu cầu trả hàng";
+    var order = ViewBag.Order as Group1_PRN222.Models.OrderTable;
+    var returnReasons = ViewBag.ReturnReasons as List<(string Code, string Display)>;
+}
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/Order/History">Lịch sử đơn hàng</a></li>
+            <li class="breadcrumb-item"><a href="/Order/Details/@order.Id">Đơn hàng #@order.Id</a></li>
+            <li class="breadcrumb-item active">Yêu cầu trả hàng</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">🔄 Tạo yêu cầu trả hàng</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>📋 Thông tin đơn hàng:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Mã đơn hàng: <strong>#@order.Id</strong></li>
+                            <li>Ngày đặt: <strong>@order.OrderDate?.ToString("dd/MM/yyyy HH:mm")</strong></li>
+                            <li>Tổng tiền: <strong>@order.TotalPrice?.ToString("N0") ₫</strong></li>
+                            <li>Trạng thái: <span class="badge bg-success">@order.Status</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Form trả hàng -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📝 Thông tin yêu cầu trả hàng</h5>
+                </div>
+                <div class="card-body">
+                    <form id="returnForm">
+                        <input type="hidden" id="orderId" value="@order.Id" />
+
+                        <!-- Lý do trả hàng -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">🔍 Lý do trả hàng <span class="text-danger">*</span></label>
+                            <select class="form-select" id="returnReason" required>
+                                <option value="">-- Chọn lý do --</option>
+                                @foreach (var reason in returnReasons)
+                                {
+                                    <option value="@reason.Code">@reason.Display</option>
+                                }
+                            </select>
+                            <div class="invalid-feedback">
+                                Vui lòng chọn lý do trả hàng.
+                            </div>
+                        </div>
+
+                        <!-- Mô tả chi tiết -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-bold">📄 Mô tả chi tiết</label>
+                            <textarea class="form-control" id="description" rows="4"
+                                      placeholder="Vui lòng mô tả chi tiết về vấn đề của sản phẩm hoặc lý do bạn muốn trả hàng..."></textarea>
+                            <small class="text-muted">
+                                Thông tin chi tiết sẽ giúp chúng tôi xử lý yêu cầu nhanh chóng hơn.
+                            </small>
+                        </div>
+
+                        <!-- Chính sách trả hàng -->
+                        <div class="alert alert-warning">
+                            <h6 class="fw-bold">⚠️ Chính sách trả hàng:</h6>
+                            <ul class="mb-0">
+                                <li>Chỉ chấp nhận trả hàng trong vòng <strong>30 ngày</strong> kể từ ngày đặt hàng</li>
+                                <li>Sản phẩm phải trong tình trạng <strong>nguyên vẹn</strong>, chưa sử dụng</li>
+                                <li>Giữ nguyên <strong>bao bì, tem nhãn</strong> và phụ kiện đi kèm</li>
+                                <li>Phí vận chuyển trả hàng sẽ được <strong>hỗ trợ</strong> nếu lỗi từ phía cửa hàng</li>
+                                <li>Thời gian xử lý: <strong>3-5 ngày làm việc</strong></li>
+                            </ul>
+                        </div>
+
+                        <!-- Đồng ý điều khoản -->
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                Tôi xác nhận đã đọc và đồng ý với <strong>chính sách trả hàng</strong> của cửa hàng
+                            </label>
+                            <div class="invalid-feedback">
+                                Bạn cần đồng ý với chính sách trả hàng để tiếp tục.
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-warning btn-lg" id="submitBtn">
+                                <span id="submitText">🔄 Gửi yêu cầu trả hàng</span>
+                                <span id="submitSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
+                            </button>
+                            <a href="/Order/Details/@order.Id" class="btn btn-outline-secondary btn-lg">
+                                ❌ Hủy bỏ
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Sản phẩm trong đơn hàng -->
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0">🛍️ Sản phẩm trong đơn hàng</h6>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        @foreach (var item in order.OrderItems)
+                        {
+                            <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
+                                <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                     class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">@item.Product?.Title</div>
+                                    <div class="text-muted small">
+                                        @item.UnitPrice?.ToString("N0") ₫ × @item.Quantity
+                                    </div>
+                                    <div class="text-primary small fw-bold">
+                                        @((item.UnitPrice * item.Quantity)?.ToString("N0")) ₫
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="border-top pt-3">
+                        <div class="d-flex justify-content-between">
+                            <strong>Tổng cộng:</strong>
+                            <strong class="text-danger">@order.TotalPrice?.ToString("N0") ₫</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hỗ trợ -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">💬 Cần hỗ trợ?</h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="small text-muted mb-2">
+                        Nếu bạn cần hỗ trợ về việc trả hàng, vui lòng liên hệ:
+                    </p>
+                    <div class="mb-2">
+                        <strong>Hotline:</strong><br>
+                        <a href="tel:1900123456" class="text-decoration-none">📞 1900-123-456</a>
+                    </div>
+                    <div>
+                        <strong>Email:</strong><br>
+                        <a href="mailto:support@ebaystore.vn" class="text-decoration-none">✉️ support@ebaystore.vn</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">✅ Gửi yêu cầu thành công!</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <div class="text-success" style="font-size: 3rem;">🔄</div>
+                </div>
+                <h6>Yêu cầu trả hàng đã được gửi thành công!</h6>
+                <p class="text-muted mb-2">Chúng tôi sẽ xem xét và phản hồi trong vòng 24-48 giờ.</p>
+                <p class="small text-muted">Bạn có thể theo dõi trạng thái trong mục "Yêu cầu trả hàng".</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-success" onclick="goToReturnList()">
+                    📋 Xem danh sách yêu cầu
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="goToOrderDetails()">
+                    ← Quay lại đơn hàng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('returnForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Validate form
+            if (!this.checkValidity()) {
+                this.classList.add('was-validated');
+                return;
+            }
+
+            const orderId = document.getElementById('orderId').value;
+            const reason = document.getElementById('returnReason').value;
+            const description = document.getElementById('description').value;
+            const agreeTerms = document.getElementById('agreeTerms').checked;
+
+            if (!agreeTerms) {
+                alert('Bạn cần đồng ý với chính sách trả hàng để tiếp tục.');
+                return;
+            }
+
+            // Show loading
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitSpinner = document.getElementById('submitSpinner');
+
+            submitBtn.disabled = true;
+            submitText.textContent = 'Đang gửi...';
+            submitSpinner.classList.remove('d-none');
+
+            try {
+                const response = await fetch('/Return/Create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: new URLSearchParams({
+                        orderId: orderId,
+                        reason: reason,
+                        description: description
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show success modal
+                    const modal = new bootstrap.Modal(document.getElementById('successModal'));
+                    modal.show();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Có lỗi xảy ra: ' + error.message);
+            } finally {
+                // Reset button
+                submitBtn.disabled = false;
+                submitText.textContent = '🔄 Gửi yêu cầu trả hàng';
+                submitSpinner.classList.add('d-none');
+            }
+        });
+
+        function goToReturnList() {
+            window.location.href = '/Return/List';
+        }
+
+        function goToOrderDetails() {
+            window.location.href = '/Order/Details/@order.Id';
+        }
+
+        // Auto-fill description based on reason
+        document.getElementById('returnReason').addEventListener('change', function() {
+            const descriptionField = document.getElementById('description');
+            const selectedReason = this.options[this.selectedIndex].text;
+
+            if (this.value && !descriptionField.value) {
+                const suggestions = {
+                    'defective': 'Sản phẩm bị lỗi/hư hỏng ngay từ khi nhận. Vui lòng hỗ trợ đổi trả.',
+                    'wrong_item': 'Nhận sai sản phẩm so với đơn hàng đã đặt.',
+                    'not_as_described': 'Sản phẩm không đúng với mô tả trên website.',
+                    'changed_mind': 'Tôi đã đổi ý và không còn nhu cầu sử dụng sản phẩm này.',
+                    'size_issue': 'Kích thước sản phẩm không phù hợp với kỳ vọng.',
+                    'quality_issue': 'Chất lượng sản phẩm không như mong đợi.',
+                    'shipping_damage': 'Sản phẩm bị hư hỏng trong quá trình vận chuyển.'
+                };
+
+                if (suggestions[this.value]) {
+                    descriptionField.value = suggestions[this.value];
+                }
+            }
+        });
+    </script>
+}

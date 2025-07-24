@@ -1,0 +1,138 @@
+﻿@model Group1_PRN222.Models.OrderTable
+
+@{
+    var canReturn = Model.Status == "Delivered" || Model.Status == "Confirmed";
+    var daysSinceOrder = Model.OrderDate.HasValue ? (DateTime.Now - Model.OrderDate.Value).Days : 0;
+    var withinReturnPeriod = daysSinceOrder <= 30;
+    var hasExistingReturn = Model.ReturnRequests.Any();
+}
+
+<!-- Return Button Section -->
+<div class="card shadow-sm mb-4" id="returnSection">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0">🔄 Trả hàng</h6>
+    </div>
+    <div class="card-body">
+        @if (hasExistingReturn)
+        {
+            var existingReturn = Model.ReturnRequests.First();
+            <div class="alert alert-info mb-3">
+                <h6 class="fw-bold">Đã có yêu cầu trả hàng</h6>
+                <p class="mb-2">
+                    Yêu cầu #@existingReturn.Id - Trạng thái:
+                    <span class="badge bg-@GetStatusColor(existingReturn.Status)">@GetStatusText(existingReturn.Status)</span>
+                </p>
+                <a href="/Return/Details/@existingReturn.Id" class="btn btn-outline-primary btn-sm">
+                    📋 Xem chi tiết yêu cầu
+                </a>
+            </div>
+        }
+        else if (canReturn && withinReturnPeriod)
+        {
+            <div class="alert alert-success mb-3">
+                <h6 class="fw-bold">✅ Đơn hàng đủ điều kiện trả hàng</h6>
+                <p class="mb-2">
+                    Bạn có thể yêu cầu trả hàng trong vòng
+                    <strong>@(30 - daysSinceOrder) ngày</strong> nữa.
+                </p>
+                <small class="text-muted">
+                    Thời hạn trả hàng: 30 ngày kể từ ngày đặt hàng
+                </small>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="/Return/Create/@Model.Id" class="btn btn-warning btn-lg flex-md-fill">
+                    🔄 Yêu cầu trả hàng
+                </a>
+                <button class="btn btn-outline-info" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#returnPolicy" aria-expanded="false">
+                    📋 Xem chính sách
+                </button>
+            </div>
+
+            <!-- Collapsible Return Policy -->
+            <div class="collapse mt-3" id="returnPolicy">
+                <div class="card card-body bg-light">
+                    <h6 class="fw-bold">📋 Chính sách trả hàng:</h6>
+                    <ul class="small mb-0">
+                        <li>Thời hạn: <strong>30 ngày</strong> kể từ ngày đặt hàng</li>
+                        <li>Sản phẩm phải trong tình trạng <strong>nguyên vẹn</strong></li>
+                        <li>Giữ nguyên <strong>bao bì và tem nhãn</strong> gốc</li>
+                        <li>Hoàn tiền trong <strong>3-5 ngày</strong> sau khi nhận hàng trả</li>
+                        <li>Miễn phí vận chuyển nếu <strong>lỗi từ phía cửa hàng</strong></li>
+                    </ul>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning mb-3">
+                <h6 class="fw-bold">⚠️ Không thể trả hàng</h6>
+                <p class="mb-1">
+                    @if (!canReturn)
+                    {
+                        <span>Chỉ có thể trả hàng cho đơn hàng đã được xác nhận hoặc giao thành công.</span>
+                    }
+                    else if (!withinReturnPeriod)
+                    {
+                        <span>Đã quá thời hạn trả hàng (30 ngày). Đơn hàng này đã được đặt @daysSinceOrder ngày trước.</span>
+                    }
+                </p>
+                <small class="text-muted">
+                    Nếu bạn gặp vấn đề với sản phẩm, vui lòng liên hệ bộ phận hỗ trợ.
+                </small>
+            </div>
+
+            <div class="d-grid">
+                <button class="btn btn-outline-secondary" onclick="contactSupport(@Model.Id)">
+                    💬 Liên hệ hỗ trợ
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Approved" => "success",
+            "Rejected" => "danger",
+            "Processing" => "info",
+            "Completed" => "success",
+            "Cancelled" => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Pending" => "⏳ Chờ xử lý",
+            "Approved" => "✅ Đã chấp nhận",
+            "Rejected" => "❌ Đã từ chối",
+            "Processing" => "🔄 Đang xử lý",
+            "Completed" => "✅ Hoàn thành",
+            "Cancelled" => "🚫 Đã hủy",
+            _ => "❓ Không xác định"
+        };
+    }
+}
+
+<script>
+    function contactSupport(orderId) {
+        const message = `Chào anh/chị,\n\nTôi cần hỗ trợ về đơn hàng #${orderId}.\n\nCảm ơn!`;
+        const mailtoLink = `mailto:support@ebaystore.vn?subject=Hỗ trợ đơn hàng #${orderId}&body=${encodeURIComponent(message)}`;
+        window.location.href = mailtoLink;
+    }
+
+    // Check return eligibility when page loads (optional real-time check)
+    document.addEventListener('DOMContentLoaded', function() {
+        // Optional: Add real-time eligibility check via AJAX
+        // This could be useful if business rules change frequently
+        console.log('Return section loaded for order #@Model.Id');
+    });
+</script>
