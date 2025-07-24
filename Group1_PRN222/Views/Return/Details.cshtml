@@ -1,0 +1,568 @@
+﻿@model Group1_PRN222.Models.ReturnRequest
+@{
+    ViewData["Title"] = $"Chi tiết yêu cầu trả hàng #{Model.Id}";
+    var payment = Model.Order.Payments.FirstOrDefault();
+}
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/Return/List">Yêu cầu trả hàng</a></li>
+            <li class="breadcrumb-item active">Chi tiết #@Model.Id</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h3 class="mb-2">🔄 Yêu cầu trả hàng #@Model.Id</h3>
+                    <p class="text-muted mb-1">Tạo ngày: @Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</p>
+                    <p class="mb-0">
+                        <span class="badge bg-@GetStatusColor(Model.Status) fs-6 px-3 py-2">@GetStatusText(Model.Status)</span>
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="fs-4 text-primary fw-bold mb-2">
+                        Đơn hàng #@Model.Order.Id
+                    </div>
+                    <div class="fs-5 text-danger fw-bold">
+                        @Model.Order.TotalPrice?.ToString("N0") ₫
+                    </div>
+                    <div class="btn-group mt-2" role="group">
+                        <a href="/Order/Details/@Model.Order.Id" class="btn btn-outline-primary btn-sm">
+                            📦 Xem đơn hàng
+                        </a>
+                        @if (Model.Status == "Pending")
+                        {
+                            <button class="btn btn-outline-danger btn-sm" onclick="cancelReturn(@Model.Id)">
+                                ❌ Hủy yêu cầu
+                            </button>
+                        }
+                        <button class="btn btn-outline-secondary btn-sm" onclick="contactSupport(@Model.Id)">
+                            💬 Liên hệ hỗ trợ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Return Details -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">📝 Thông tin yêu cầu trả hàng</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Mã yêu cầu:</strong> #@Model.Id</p>
+                            <p class="mb-2"><strong>Ngày tạo:</strong> @Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p class="mb-2">
+                                <strong>Trạng thái:</strong>
+                                <span class="badge bg-@GetStatusColor(Model.Status)">@GetStatusText(Model.Status)</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Đơn hàng liên quan:</strong> #@Model.Order.Id</p>
+                            <p class="mb-2"><strong>Ngày đặt hàng:</strong> @Model.Order.OrderDate?.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p class="mb-2"><strong>Tổng tiền đơn hàng:</strong> @Model.Order.TotalPrice?.ToString("N0") ₫</p>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-3">
+                        <h6 class="fw-bold mb-2">🔍 Lý do trả hàng:</h6>
+                        <div class="p-3 bg-light rounded">
+                            @if (!string.IsNullOrEmpty(Model.Reason))
+                            {
+                                var reasonParts = Model.Reason.Split(':');
+                                <div class="fw-bold text-primary mb-2">@GetReasonDisplay(reasonParts[0])</div>
+                                @if (reasonParts.Length > 1)
+                                {
+                                    <div>@string.Join(":", reasonParts.Skip(1))</div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">Không có lý do cụ thể</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Timeline -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">📈 Tiến trình xử lý</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6>✅ Yêu cầu đã được tạo</h6>
+                                <small class="text-muted">@Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+                                <p class="small mb-0">Yêu cầu trả hàng đã được gửi thành công.</p>
+                            </div>
+                        </div>
+
+                        @{
+                            var isProcessing = Model.Status == "Processing" || Model.Status == "Approved" || Model.Status == "Completed";
+                            var isCompleted = Model.Status == "Approved" || Model.Status == "Completed";
+                            var isFinal = Model.Status == "Completed" || Model.Status == "Rejected" || Model.Status == "Cancelled";
+                        }
+
+                        <div class="timeline-item @(isProcessing ? "completed" : "")">
+                            <div class="timeline-marker bg-@(isProcessing ? "success" : "light")"></div>
+                            <div class="timeline-content">
+                                <h6>🔍 Đang xem xét yêu cầu</h6>
+                                @if (isProcessing)
+                                {
+                                    <small class="text-muted">Đã xử lý</small>
+                                    <p class="small mb-0">Yêu cầu đang được xem xét bởi đội ngũ hỗ trợ.</p>
+                                }
+                                else
+                                {
+                                    <small class="text-muted">Chờ xử lý</small>
+                                    <p class="small mb-0">Yêu cầu sẽ được xem xét trong vòng 24-48 giờ.</p>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="timeline-item @(isCompleted ? "completed" : "")">
+                            <div class="timeline-marker bg-@(isCompleted ? "success" : "light")"></div>
+                            <div class="timeline-content">
+                                @if (Model.Status == "Approved")
+                                {
+                                    <h6>✅ Yêu cầu được chấp nhận</h6>
+                                    <small class="text-muted">Đã chấp nhận</small>
+                                    <p class="small mb-0">Vui lòng chuẩn bị sản phẩm để gửi trả.</p>
+                                }
+                                @if (Model.Status == "Rejected")
+                                {
+                                    <h6>❌ Yêu cầu bị từ chối</h6>
+                                    <small class="text-muted">Đã từ chối</small>
+                                    <p class="small mb-0">Yêu cầu không đáp ứng điều kiện trả hàng.</p>
+                                }
+                                @if (Model.Status == "Cancelled")
+                                {
+                                    <h6>🚫 Yêu cầu đã bị hủy</h6>
+                                    <small class="text-muted">Đã hủy</small>
+                                    <p class="small mb-0">Yêu cầu đã được hủy bởi khách hàng.</p>
+                                }
+                                @if (!isFinal && !isCompleted)
+                                {
+                                    <h6>⏳ Quyết định cuối cùng</h6>
+                                    <small class="text-muted">Chờ quyết định</small>
+                                    <p class="small mb-0">Chúng tôi sẽ thông báo kết quả sớm nhất.</p>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Model.Status == "Approved")
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-light"></div>
+                                <div class="timeline-content">
+                                    <h6>📦 Hoàn tất trả hàng</h6>
+                                    <small class="text-muted">Chờ thực hiện</small>
+                                    <p class="small mb-0">Sau khi nhận được sản phẩm, chúng tôi sẽ hoàn tiền.</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">🛍️ Sản phẩm cần trả (@Model.Order.OrderItems.Count mặt hàng)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-center">Số lượng</th>
+                                    <th class="text-end">Đơn giá</th>
+                                    <th class="text-end">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Order.OrderItems)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                                     class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                                <div>
+                                                    <h6 class="mb-1">@item.Product?.Title</h6>
+                                                    <small class="text-muted">@item.Product?.Category?.Name</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            <span class="badge bg-light text-dark fs-6">@item.Quantity</span>
+                                        </td>
+                                        <td class="text-end align-middle">
+                                            @item.UnitPrice?.ToString("N0") ₫
+                                        </td>
+                                        <td class="text-end align-middle fw-bold">
+                                            @((item.UnitPrice * item.Quantity)?.ToString("N0")) ₫
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return Instructions -->
+            @if (Model.Status == "Approved")
+            {
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">📋 Hướng dẫn trả hàng</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6 class="fw-bold">🎯 Yêu cầu đã được chấp nhận!</h6>
+                            <p class="mb-2">Vui lòng thực hiện theo các bước sau để hoàn tất việc trả hàng:</p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold">📦 Chuẩn bị sản phẩm:</h6>
+                                <ul class="small">
+                                    <li>Đóng gói sản phẩm cẩn thận</li>
+                                    <li>Giữ nguyên bao bì gốc nếu có</li>
+                                    <li>Bao gồm tất cả phụ kiện</li>
+                                    <li>In và đính kèm phiếu trả hàng</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="fw-bold">🚚 Gửi trả hàng:</h6>
+                                <ul class="small">
+                                    <li>Địa chỉ: 123 Nguyễn Văn Cừ, Q1, HCM</li>
+                                    <li>Người nhận: Phòng Chăm sóc khách hàng</li>
+                                    <li>SĐT: 1900-123-456</li>
+                                    <li>Ghi chú: Trả hàng #@Model.Id</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-success" onclick="printReturnLabel()">
+                                🖨️ In phiếu trả hàng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Order Summary -->
+            <div class="card shadow-sm mb-4 sticky-top" style="top: 20px;">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">📊 Tóm tắt đơn hàng</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tạm tính:</span>
+                        <span class="fw-bold">@Model.Order.TotalPrice?.ToString("N0") ₫</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Phí vận chuyển:</span>
+                        <span class="text-success fw-bold">Miễn phí</span>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <strong class="fs-5">Tổng cộng:</strong>
+                        <strong class="fs-5 text-danger">@Model.Order.TotalPrice?.ToString("N0") ₫</strong>
+                    </div>
+
+                    @if (payment != null)
+                    {
+                        <div class="bg-light p-2 rounded mb-3">
+                            <small class="text-muted">Thanh toán: </small>
+                            <strong>@payment.Method</strong>
+                            <div class="small text-success">@payment.Status</div>
+                        </div>
+                    }
+
+                    <!-- Refund Info -->
+                    @if (Model.Status == "Approved" || Model.Status == "Completed")
+                    {
+                        <div class="alert alert-success p-2">
+                            <small>
+                                <strong>💰 Hoàn tiền:</strong><br>
+                                Số tiền @Model.Order.TotalPrice?.ToString("N0") ₫ sẽ được hoàn lại theo phương thức thanh toán gốc.
+                            </small>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Delivery Address -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">📍 Địa chỉ giao hàng gốc</h6>
+                </div>
+                <div class="card-body">
+                    <address class="mb-0">
+                        <strong>@Model.Order.Address?.FullName</strong><br>
+                        📞 @Model.Order.Address?.Phone<br>
+                        📍 @Model.Order.Address?.Street<br>
+                        @Model.Order.Address?.City, @Model.Order.Address?.State<br>
+                        @Model.Order.Address?.Country
+                    </address>
+                </div>
+            </div>
+
+            <!-- Support Info -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">🆘 Cần hỗ trợ?</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <strong>Hotline:</strong><br>
+                        <a href="tel:1900123456" class="text-decoration-none">📞 1900-123-456</a>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Email:</strong><br>
+                        <a href="mailto:returns@ebaystore.vn" class="text-decoration-none">✉️ returns@ebaystore.vn</a>
+                    </div>
+                    <small class="text-muted">8:00 - 22:00 (Thứ 2 - CN)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Return Modal -->
+<div class="modal fade" id="cancelReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">❌ Hủy yêu cầu trả hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn hủy yêu cầu trả hàng <strong>#@Model.Id</strong>?</p>
+                <div class="alert alert-warning">
+                    <strong>Lưu ý:</strong> Yêu cầu trả hàng đã hủy không thể khôi phục.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Giữ yêu cầu</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancelReturn()">Xác nhận hủy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Approved" => "success",
+            "Rejected" => "danger",
+            "Processing" => "info",
+            "Completed" => "success",
+            "Cancelled" => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Pending" => "⏳ Chờ xử lý",
+            "Approved" => "✅ Đã chấp nhận",
+            "Rejected" => "❌ Đã từ chối",
+            "Processing" => "🔄 Đang xử lý",
+            "Completed" => "✅ Hoàn thành",
+            "Cancelled" => "🚫 Đã hủy",
+            _ => "❓ Không xác định"
+        };
+    }
+
+    string GetReasonDisplay(string reasonCode)
+    {
+        return reasonCode switch
+        {
+            "defective" => "Sản phẩm bị lỗi/hư hỏng",
+            "wrong_item" => "Giao sai sản phẩm",
+            "not_as_described" => "Sản phẩm không đúng mô tả",
+            "changed_mind" => "Đổi ý không muốn mua",
+            "size_issue" => "Kích thước không phù hợp",
+            "quality_issue" => "Chất lượng không như mong đợi",
+            "shipping_damage" => "Hư hỏng trong quá trình vận chuyển",
+            "other" => "Lý do khác",
+            _ => reasonCode
+        };
+    }
+}
+
+@section Scripts {
+    <script>
+        function cancelReturn(returnId) {
+            const modal = new bootstrap.Modal(document.getElementById('cancelReturnModal'));
+            modal.show();
+        }
+
+        async function confirmCancelReturn() {
+            try {
+                const response = await fetch('/Return/Cancel/@Model.Id', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('cancelReturnModal')).hide();
+                    alert('✅ ' + result.message);
+                    window.location.reload();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Có lỗi xảy ra: ' + error.message);
+            }
+        }
+
+        function contactSupport(returnId) {
+            const message = `Chào anh/chị,\n\nTôi cần hỗ trợ về yêu cầu trả hàng #${returnId}.\n\nCảm ơn!`;
+            const mailtoLink = `mailto:returns@ebaystore.vn?subject=Hỗ trợ yêu cầu trả hàng #${returnId}&body=${encodeURIComponent(message)}`;
+
+            window.location.href = mailtoLink;
+        }
+
+        function printReturnLabel() {
+            // Create a simple print window with return label
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Phiếu trả hàng #@Model.Id</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; }
+                            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                            .section { margin: 15px 0; }
+                            .label { font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>PHIẾU TRẢ HÀNG</h2>
+                            <p>Mã yêu cầu: #@Model.Id</p>
+                        </div>
+
+                        <div class="section">
+                            <div class="label">Từ:</div>
+                            <p>@Model.Order.Address?.FullName<br>
+        @Model.Order.Address?.Street<br>
+        @Model.Order.Address?.City, @Model.Order.Address?.Country<br>
+                               📞 @Model.Order.Address?.Phone</p>
+                        </div>
+
+                        <div class="section">
+                            <div class="label">Đến:</div>
+                            <p>Phòng Chăm sóc khách hàng - eBay Clone Store<br>
+                               123 Nguyễn Văn Cừ, Quận 1, TP.HCM<br>
+                               📞 1900-123-456</p>
+                        </div>
+
+                        <div class="section">
+                            <div class="label">Thông tin đơn hàng:</div>
+                            <p>Đơn hàng: #@Model.Order.Id<br>
+                               Ngày đặt: @Model.Order.OrderDate?.ToString("dd/MM/yyyy")<br>
+                               Tổng tiền: @Model.Order.TotalPrice?.ToString("N0") ₫</p>
+                        </div>
+
+                        <div class="section">
+                            <div class="label">Lý do trả hàng:</div>
+                            <p>@Model.Reason</p>
+                        </div>
+
+                        <div class="section">
+                            <div class="label">Ghi chú:</div>
+                            <p>Xin vui lòng xử lý yêu cầu trả hàng #@Model.Id</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    </script>
+}
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -18px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #dee2e6;
+    }
+
+    .timeline-item.completed .timeline-content {
+        border-left-color: #198754;
+    }
+
+    .timeline-item.active .timeline-content {
+        border-left-color: #0d6efd;
+        background: #e3f2fd;
+    }
+</style>

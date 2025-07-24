@@ -36,6 +36,7 @@ namespace Group1_PRN222.Controllers
                 .Where(o => o.Id == orderId && o.BuyerId == userId)
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                .ThenInclude(p => p.Category)
                 .Include(o => o.Address)
                 .Include(o => o.Payments)
                 .FirstOrDefaultAsync();
@@ -115,13 +116,16 @@ namespace Group1_PRN222.Controllers
                 {
                     OrderId = orderId,
                     UserId = userId,
-                    Reason = $"{reason}: {description}".Trim(':'),
+                    Reason = string.IsNullOrEmpty(description) ? reason : $"{reason}: {description}",
                     Status = "Pending",
                     CreatedAt = DateTime.Now
                 };
 
                 _context.ReturnRequests.Add(returnRequest);
                 await _context.SaveChangesAsync();
+
+                // Log the return request creation (optional)
+                Console.WriteLine($"Return request #{returnRequest.Id} created for order #{orderId} by user #{userId}");
 
                 return Json(new
                 {
@@ -132,14 +136,16 @@ namespace Group1_PRN222.Controllers
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+                // Log the error (in production, use proper logging)
+                Console.WriteLine($"Error creating return request: {ex.Message}");
+                return Json(new { success = false, message = "Có lỗi xảy ra trong hệ thống. Vui lòng thử lại sau." });
             }
         }
 
         /// <summary>
         /// GET: /Return/List - Danh sách yêu cầu trả hàng của user
         /// </summary>
-        public async Task<IActionResult> List(int page = 1, int pageSize = 10)
+        public async Task<IActionResult> List(int page = 1, int pageSize = 10, string status = "")
         {
             var userId = GetCurrentUserId();
 
@@ -148,7 +154,15 @@ namespace Group1_PRN222.Controllers
                 .Include(r => r.Order)
                 .ThenInclude(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-                .OrderByDescending(r => r.CreatedAt);
+                .AsQueryable();
+
+            // Filter by status if provided
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(r => r.Status == status);
+            }
+
+            query = query.OrderByDescending(r => r.CreatedAt);
 
             var totalReturns = await query.CountAsync();
             var returns = await query
@@ -159,6 +173,7 @@ namespace Group1_PRN222.Controllers
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = (int)Math.Ceiling((double)totalReturns / pageSize);
             ViewBag.TotalReturns = totalReturns;
+            ViewBag.StatusFilter = status;
 
             return View(returns);
         }
@@ -175,6 +190,7 @@ namespace Group1_PRN222.Controllers
                 .Include(r => r.Order)
                 .ThenInclude(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                .ThenInclude(p => p.Category)
                 .Include(r => r.Order.Address)
                 .Include(r => r.Order.Payments)
                 .FirstOrDefaultAsync();
@@ -209,18 +225,59 @@ namespace Group1_PRN222.Controllers
 
                 if (returnRequest.Status != "Pending")
                 {
-                    return Json(new { success = false, message = "Không thể hủy yêu cầu trả hàng này." });
+                    return Json(new { success = false, message = "Không thể hủy yêu cầu trả hàng này. Chỉ có thể hủy các yêu cầu đang chờ xử lý." });
                 }
 
                 returnRequest.Status = "Cancelled";
                 await _context.SaveChangesAsync();
 
+                // Log the cancellation
+                Console.WriteLine($"Return request #{id} cancelled by user #{userId}");
+
                 return Json(new { success = true, message = "Đã hủy yêu cầu trả hàng thành công." });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+                Console.WriteLine($"Error cancelling return request: {ex.Message}");
+                return Json(new { success = false, message = "Có lỗi xảy ra trong hệ thống. Vui lòng thử lại sau." });
             }
+        }
+
+        /// <summary>
+        /// GET: /Return/CheckEligibility/{orderId} - Check if order is eligible for return (AJAX)
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> CheckEligibility(int orderId)
+        {
+            var userId = GetCurrentUserId();
+
+            var order = await _context.OrderTables
+                .Where(o => o.Id == orderId && o.BuyerId == userId)
+                .FirstOrDefaultAsync();
+
+            if (order == null)
+            {
+                return Json(new { eligible = false, reason = "Không tìm thấy đơn hàng." });
+            }
+
+            var existingReturn = await _context.ReturnRequests
+                .FirstOrDefaultAsync(r => r.OrderId == orderId);
+
+            if (existingReturn != null)
+            {
+                return Json(new
+                {
+                    eligible = false,
+                    reason = "Đơn hàng này đã có yêu cầu trả hàng.",
+                    existingReturnId = existingReturn.Id,
+                    existingReturnStatus = existingReturn.Status
+                });
+            }
+
+            var isEligible = IsOrderEligibleForReturn(order);
+            var reason = isEligible ? "Đơn hàng đủ điều kiện trả hàng." : GetReturnIneligibilityReason(order);
+
+            return Json(new { eligible = isEligible, reason = reason });
         }
 
         #endregion
@@ -233,7 +290,7 @@ namespace Group1_PRN222.Controllers
         private bool IsOrderEligibleForReturn(OrderTable order)
         {
             // Must be delivered
-            if (order.Status != "Delivered")
+            if (order.Status != "Delivered" && order.Status != "Confirmed")
                 return false;
 
             // Must be within return period (e.g., 30 days)
@@ -252,14 +309,14 @@ namespace Group1_PRN222.Controllers
         /// </summary>
         private string GetReturnIneligibilityReason(OrderTable order)
         {
-            if (order.Status != "Delivered")
-                return "Chỉ có thể trả hàng cho đơn hàng đã được giao thành công.";
+            if (order.Status != "Delivered" && order.Status != "Confirmed")
+                return "Chỉ có thể trả hàng cho đơn hàng đã được xác nhận hoặc giao thành công.";
 
             if (order.OrderDate.HasValue)
             {
                 var daysSinceOrder = (DateTime.Now - order.OrderDate.Value).Days;
                 if (daysSinceOrder > 30)
-                    return "Đã quá thời hạn trả hàng (30 ngày kể từ khi đặt hàng).";
+                    return $"Đã quá thời hạn trả hàng (30 ngày kể từ khi đặt hàng). Đơn hàng này đã được đặt {daysSinceOrder} ngày trước.";
             }
 
             return "Đơn hàng không đủ điều kiện để trả hàng.";
@@ -283,21 +340,60 @@ namespace Group1_PRN222.Controllers
             };
         }
 
+        /// <summary>
+        /// Get return statistics for user (for future dashboard)
+        /// </summary>
+        private async Task<(int Total, int Pending, int Approved, int Rejected)> GetReturnStatsForUser(int userId)
+        {
+            var returns = await _context.ReturnRequests
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+
+            return (
+                Total: returns.Count,
+                Pending: returns.Count(r => r.Status == "Pending"),
+                Approved: returns.Count(r => r.Status == "Approved"),
+                Rejected: returns.Count(r => r.Status == "Rejected")
+            );
+        }
+
         #endregion
 
-        #region Admin Functions (For future admin panel)
+        #region Admin Functions (For future admin panel - User side would not access these)
 
         /// <summary>
         /// GET: /Return/Manage - Admin manage return requests (future feature)
+        /// Note: This would typically be in an Admin area/controller
         /// </summary>
-        public async Task<IActionResult> Manage()
+        public async Task<IActionResult> Manage(int page = 1, int pageSize = 20, string status = "")
         {
             // TODO: Add admin authorization check
-            var returns = await _context.ReturnRequests
+            // For now, this is just a placeholder for future admin functionality
+
+            var query = _context.ReturnRequests
                 .Include(r => r.Order)
+                .ThenInclude(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
                 .Include(r => r.User)
-                .OrderByDescending(r => r.CreatedAt)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(r => r.Status == status);
+            }
+
+            query = query.OrderByDescending(r => r.CreatedAt);
+
+            var totalReturns = await query.CountAsync();
+            var returns = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalReturns / pageSize);
+            ViewBag.TotalReturns = totalReturns;
+            ViewBag.StatusFilter = status;
 
             return View(returns);
         }
@@ -312,21 +408,34 @@ namespace Group1_PRN222.Controllers
             {
                 // TODO: Add admin authorization check
 
-                var returnRequest = await _context.ReturnRequests.FindAsync(id);
+                var returnRequest = await _context.ReturnRequests
+                    .Include(r => r.Order)
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
                 if (returnRequest == null)
                 {
                     return Json(new { success = false, message = "Không tìm thấy yêu cầu trả hàng." });
                 }
 
+                if (returnRequest.Status != "Pending")
+                {
+                    return Json(new { success = false, message = "Chỉ có thể chấp nhận các yêu cầu đang chờ xử lý." });
+                }
+
                 returnRequest.Status = "Approved";
-                // TODO: Add admin notes field to model
+                // TODO: Add admin notes field to model if needed
+
                 await _context.SaveChangesAsync();
+
+                // Log the approval
+                Console.WriteLine($"Return request #{id} approved by admin. Order #{returnRequest.OrderId}");
 
                 return Json(new { success = true, message = "Đã chấp nhận yêu cầu trả hàng." });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+                Console.WriteLine($"Error approving return request: {ex.Message}");
+                return Json(new { success = false, message = "Có lỗi xảy ra trong hệ thống." });
             }
         }
 
@@ -346,15 +455,25 @@ namespace Group1_PRN222.Controllers
                     return Json(new { success = false, message = "Không tìm thấy yêu cầu trả hàng." });
                 }
 
+                if (returnRequest.Status != "Pending")
+                {
+                    return Json(new { success = false, message = "Chỉ có thể từ chối các yêu cầu đang chờ xử lý." });
+                }
+
                 returnRequest.Status = "Rejected";
-                // TODO: Add rejection reason to model
+                // TODO: Add rejection reason to model if needed
+
                 await _context.SaveChangesAsync();
+
+                // Log the rejection
+                Console.WriteLine($"Return request #{id} rejected by admin. Reason: {reason}");
 
                 return Json(new { success = true, message = "Đã từ chối yêu cầu trả hàng." });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+                Console.WriteLine($"Error rejecting return request: {ex.Message}");
+                return Json(new { success = false, message = "Có lỗi xảy ra trong hệ thống." });
             }
         }
 

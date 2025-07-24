@@ -1,0 +1,367 @@
+﻿@model IEnumerable<Group1_PRN222.Models.ReturnRequest>
+@{
+    ViewData["Title"] = "Yêu cầu trả hàng của tôi";
+    var currentPage = ViewBag.CurrentPage ?? 1;
+    var totalPages = ViewBag.TotalPages ?? 1;
+    var totalReturns = ViewBag.TotalReturns ?? 0;
+}
+
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">🔄 Yêu cầu trả hàng của tôi</h2>
+            <p class="text-muted mb-0">Tổng cộng: @totalReturns yêu cầu</p>
+        </div>
+        <div>
+            <a href="/Order/History" class="btn btn-outline-primary">
+                📂 Lịch sử đơn hàng
+            </a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <div style="font-size: 4rem; opacity: 0.5;">🔄</div>
+            <h4 class="text-muted">Chưa có yêu cầu trả hàng nào</h4>
+            <p class="text-muted">Bạn chưa gửi yêu cầu trả hàng nào. Nếu có vấn đề với đơn hàng, hãy liên hệ với chúng tôi!</p>
+            <a href="/Order/History" class="btn btn-primary btn-lg">
+                📦 Xem đơn hàng của tôi
+            </a>
+        </div>
+    }
+    else
+    {
+        <!-- Return Requests List -->
+        <div class="row" id="returnsContainer">
+            @foreach (var returnRequest in Model)
+            {
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-start border-4 border-@GetStatusColor(returnRequest.Status)">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <!-- Return Info -->
+                                <div class="col-lg-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="me-3">
+                                            <div class="bg-warning text-dark rounded-circle d-inline-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px; font-size: 1.2rem;">
+                                                🔄
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">Yêu cầu #@returnRequest.Id</h6>
+                                            <small class="text-muted">@returnRequest.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Order Info -->
+                                <div class="col-lg-4">
+                                    <div class="d-flex align-items-center">
+                                        @{
+                                            var firstItems = returnRequest.Order.OrderItems.Take(2).ToList();
+                                        }
+                                        <div class="d-flex me-2">
+                                            @foreach (var item in firstItems)
+                                            {
+                                                <img src="@item.Product?.Images" alt="@item.Product?.Title"
+                                                     class="rounded border me-1"
+                                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                            }
+                                            @if (returnRequest.Order.OrderItems.Count > 2)
+                                            {
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center border"
+                                                     style="width: 40px; height: 40px;">
+                                                    <small class="fw-bold">+@(returnRequest.Order.OrderItems.Count - 2)</small>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="small fw-bold">Đơn hàng #@returnRequest.Order.Id</div>
+                                            <div class="small text-muted">
+                                                @returnRequest.Order.OrderItems.Count sản phẩm
+                                            </div>
+                                            <div class="small text-primary fw-bold">
+                                                @returnRequest.Order.TotalPrice?.ToString("N0") ₫
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Status & Reason -->
+                                <div class="col-lg-2 text-center">
+                                    <div class="mb-2">
+                                        <span class="badge bg-@GetStatusColor(returnRequest.Status) fs-6 px-3 py-2">
+                                            @GetStatusText(returnRequest.Status)
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted">
+                                        @GetReasonDisplay(returnRequest.Reason)
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="col-lg-3">
+                                    <div class="d-flex flex-column gap-2">
+                                        <a href="/Return/Details/@returnRequest.Id" class="btn btn-outline-primary btn-sm">
+                                            📋 Xem chi tiết
+                                        </a>
+
+                                        @if (returnRequest.Status == "Pending")
+                                        {
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    onclick="cancelReturn(@returnRequest.Id)">
+                                                ❌ Hủy yêu cầu
+                                            </button>
+                                        }
+
+                                        <a href="/Order/Details/@returnRequest.Order.Id" class="btn btn-outline-secondary btn-sm">
+                                            📦 Xem đơn hàng
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Info -->
+                            @if (returnRequest.Status == "Approved" || returnRequest.Status == "Processing")
+                            {
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info p-2 mb-0">
+                                            <small>
+                                                @if (returnRequest.Status == "Approved")
+                                                {
+                                                    <span>✅ Yêu cầu đã được chấp nhận. Vui lòng chuẩn bị sản phẩm để gửi trả.</span>
+                                                }
+                                                else if (returnRequest.Status == "Processing")
+                                                {
+                                                    <span>⏳ Đang xử lý yêu cầu. Chúng tôi sẽ phản hồi sớm nhất có thể.</span>
+                                                }
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages > 1)
+        {
+            <nav aria-label="Return requests pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @if (currentPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="?page=@(currentPage - 1)">« Trước</a>
+                        </li>
+                    }
+
+                    @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                    {
+                        <li class="page-item @(i == currentPage ? "active" : "")">
+                            <a class="page-link" href="?page=@i">@i</a>
+                        </li>
+                    }
+
+                    @if (currentPage < totalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="?page=@(currentPage + 1)">Sau »</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
+    }
+
+    <!-- Info Cards -->
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3" style="font-size: 2.5rem;">📋</div>
+                    <h6 class="fw-bold">Chính sách trả hàng</h6>
+                    <p class="small text-muted mb-0">
+                        Tìm hiểu về các điều khoản và quy định trả hàng của chúng tôi.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3" style="font-size: 2.5rem;">💬</div>
+                    <h6 class="fw-bold">Hỗ trợ 24/7</h6>
+                    <p class="small text-muted mb-0">
+                        Liên hệ với đội ngũ hỗ trợ nếu bạn cần giúp đỡ về việc trả hàng.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3" style="font-size: 2.5rem;">🚚</div>
+                    <h6 class="fw-bold">Miễn phí vận chuyển</h6>
+                    <p class="small text-muted mb-0">
+                        Chúng tôi hỗ trợ phí vận chuyển cho việc trả hàng nếu lỗi từ phía shop.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Return Modal -->
+<div class="modal fade" id="cancelReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">❌ Hủy yêu cầu trả hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Bạn có chắc chắn muốn hủy yêu cầu trả hàng <strong id="cancelReturnId"></strong>?</p>
+                <div class="alert alert-warning">
+                    <strong>Lưu ý:</strong>
+                    <ul class="mb-0">
+                        <li>Yêu cầu trả hàng đã hủy không thể khôi phục</li>
+                        <li>Bạn sẽ cần tạo yêu cầu mới nếu vẫn muốn trả hàng</li>
+                        <li>Việc hủy yêu cầu sẽ được ghi nhận trong hệ thống</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Giữ yêu cầu</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancelReturn()">Xác nhận hủy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Approved" => "success",
+            "Rejected" => "danger",
+            "Processing" => "info",
+            "Completed" => "success",
+            "Cancelled" => "secondary",
+            _ => "secondary"
+        };
+    }
+
+    string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Pending" => "⏳ Chờ xử lý",
+            "Approved" => "✅ Đã chấp nhận",
+            "Rejected" => "❌ Đã từ chối",
+            "Processing" => "🔄 Đang xử lý",
+            "Completed" => "✅ Hoàn thành",
+            "Cancelled" => "🚫 Đã hủy",
+            _ => "❓ Không xác định"
+        };
+    }
+
+    string GetReasonDisplay(string reason)
+    {
+        if (string.IsNullOrEmpty(reason)) return "Không có lý do";
+
+        var parts = reason.Split(':');
+        if (parts.Length > 0)
+        {
+            return parts[0] switch
+            {
+                "defective" => "Sản phẩm lỗi",
+                "wrong_item" => "Giao sai hàng",
+                "not_as_described" => "Không đúng mô tả",
+                "changed_mind" => "Đổi ý",
+                "size_issue" => "Vấn đề kích thước",
+                "quality_issue" => "Chất lượng kém",
+                "shipping_damage" => "Hư hỏng vận chuyển",
+                "other" => "Lý do khác",
+                _ => parts[0]
+            };
+        }
+        return reason;
+    }
+}
+
+@section Scripts {
+    <script>
+        let selectedReturnId = 0;
+
+        // Cancel return
+        function cancelReturn(returnId) {
+            selectedReturnId = returnId;
+            document.getElementById('cancelReturnId').textContent = '#' + returnId;
+
+            const modal = new bootstrap.Modal(document.getElementById('cancelReturnModal'));
+            modal.show();
+        }
+
+        async function confirmCancelReturn() {
+            try {
+                const response = await fetch('/Return/Cancel/' + selectedReturnId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Close modal and reload page
+                    bootstrap.Modal.getInstance(document.getElementById('cancelReturnModal')).hide();
+
+                    // Show success message
+                    alert('✅ ' + result.message);
+
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ Có lỗi xảy ra: ' + error.message);
+            }
+        }
+
+        // Auto-refresh every 60 seconds for pending returns
+        setInterval(() => {
+            const pendingReturns = document.querySelectorAll('.border-warning');
+            if (pendingReturns.length > 0) {
+                console.log('Checking for return status updates...');
+                // Optional: implement auto-refresh for status updates
+            }
+        }, 60000);
+    </script>
+}
+
+<style>
+    .card {
+        transition: all 0.2s ease;
+    }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+
+    .border-start {
+        border-left-width: 4px !important;
+    }
+</style>
