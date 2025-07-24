@@ -1,5 +1,10 @@
 ﻿@model Group1_PRN222.Models.User
 
+@{
+    var addresses = Model.Addresses?.ToList() ?? new List<Group1_PRN222.Models.Address>();
+    var defaultAddress = addresses.FirstOrDefault(a => a.IsDefault);
+}
+
 <h1>Edit</h1>
 
 <h4>User</h4>
@@ -12,7 +17,7 @@
             <div class="form-group">
                 <label asp-for="Username" class="control-label"></label>
                 <input asp-for="Username" class="form-control" />
-                <span asp-validation-for="Username" class="text-danger"></span>
+                <span asp-validation-for="Username" class="te   xt-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="Email" class="control-label"></label>
@@ -30,6 +35,51 @@
                 }
                 <span asp-validation-for="AvatarUrl" class="text-danger"></span>
             </div>
+
+            <div class="form-group mt-4">
+                <label><strong>Default Address</strong></label>
+                @if (defaultAddress != null)
+                {
+                    <input class="form-control mb-2" value="@defaultAddress.FullName" readonly />
+                }
+                else
+                {
+                    <div class="alert alert-warning mb-2">Please choose an address as default</div>
+                }
+            </div>
+
+            <div class="form-group">
+                <label><strong>Addresses</strong></label>
+                @if (addresses.Count > 0)
+                {
+                    <ul class="list-group">
+                        @foreach (var address in addresses)
+                        {
+                            <li class="list-group-item d-flex align-items-center">
+                                <input type="radio"
+                                       name="DefaultAddressId"
+                                       value="@address.Id"
+                                       @(address.IsDefault ? "checked" : "")
+                                       class="form-check-input me-2" />
+                                <span>@address.FullName</span>
+                                @if (address.IsDefault)
+                                {
+                                    <span class="badge bg-success ms-2">Default</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="alert alert-info">No addresses found.</div>
+                }
+                <div class="mt-3">
+                    <a asp-controller="Addresses" asp-action="Index" class="btn btn-primary w-100">Manage Addresses</a>
+                </div>
+            </div>
+
+            @* <a class="nav-link" asp-controller="Address" asp-action="Login">Login</a> *@
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
@@ -37,9 +87,6 @@
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
 
 @* @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

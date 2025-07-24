@@ -131,7 +131,7 @@ public class AccountController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,Username,Email,Password,Role,AvatarUrl")] User model, IFormFile AvatarFile)
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Username,Email,Password,Role,AvatarUrl")] User model, IFormFile AvatarFile, int? DefaultAddressId)
     {
         if (id != model.Id)
         {
@@ -140,10 +140,16 @@ public class AccountController : Controller
 
         if (!ModelState.IsValid)
         {
-            return View(model);
+            // Reload addresses for the view if model state is invalid
+            var userWithAddresses = await _context.Users
+                .Include(u => u.Addresses)
+                .FirstOrDefaultAsync(u => u.Id == id);
+            return View(userWithAddresses ?? model);
         }
 
-        var user = await _context.Users.FindAsync(id);
+        var user = await _context.Users
+            .Include(u => u.Addresses)
+            .FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
         {
             return NotFound();
@@ -176,7 +182,20 @@ public class AccountController : Controller
             else
             {
                 ModelState.AddModelError("AvatarFile", "Only PNG files are allowed.");
-                return View(model);
+                // Reload addresses for the view if model state is invalid
+                var userWithAddresses = await _context.Users
+                    .Include(u => u.Addresses)
+                    .FirstOrDefaultAsync(u => u.Id == id);
+                return View(userWithAddresses ?? model);
+            }
+        }
+
+        // Update default address
+        if (user.Addresses != null && user.Addresses.Count > 0)
+        {
+            foreach (var address in user.Addresses)
+            {
+                address.IsDefault = (DefaultAddressId.HasValue && address.Id == DefaultAddressId.Value);
             }
         }
 
