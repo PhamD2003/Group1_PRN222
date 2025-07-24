@@ -85,8 +85,6 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
             return View(model);
 
-        //TODO: Use password hashing function here
-
         var pwd = HashPassword(model);
 
         var user = await _context.Users
@@ -103,9 +101,106 @@ public class AccountController : Controller
             ModelState.AddModelError("", "Please confirm your email before logging in.");
             return View(model);
         }
+
+        HttpContext.Session.SetString("Username", user.Username);
         HttpContext.Session.SetInt32("UserId", user.Id);
 
-        return RedirectToAction("Index", "Product");
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Logout()
+    {
+        // Clear all session data
+        HttpContext.Session.Clear();
+        // Redirect to the login page (or home page as you prefer)
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var user = await _context.Users
+            .Include(u => u.Addresses)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+        return View(user);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Username,Email,Password,Role,AvatarUrl")] User model, IFormFile AvatarFile, int? DefaultAddressId)
+    {
+        if (id != model.Id)
+        {
+            return NotFound();
+        }
+
+        // Always load the user with addresses for update and for redisplay on error
+        var user = await _context.Users
+            .Include(u => u.Addresses)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            // Repopulate addresses for the view
+            model.Addresses = user.Addresses;
+            return View(model);
+        }
+
+        // Update user properties
+        user.Username = model.Username;
+        user.Email = model.Email;
+
+        // Handle avatar upload if a file is provided
+        if (AvatarFile != null && AvatarFile.Length > 0)
+        {
+            var ext = Path.GetExtension(AvatarFile.FileName).ToLowerInvariant();
+            if (ext == ".png")
+            {
+                var fileName = $"avatar_{user.Id}_{DateTime.UtcNow.Ticks}{ext}";
+                var filePath = Path.Combine("wwwroot", "avatars", fileName);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await AvatarFile.CopyToAsync(stream);
+                }
+
+                user.AvatarUrl = $"/avatars/{fileName}";
+            }
+            else
+            {
+                ModelState.AddModelError("AvatarFile", "Only PNG files are allowed.");
+                model.Addresses = user.Addresses;
+                return View(model);
+            }
+        }
+
+        // Update default address
+        if (user.Addresses != null && user.Addresses.Count > 0)
+        {
+            foreach (var address in user.Addresses)
+            {
+                address.IsDefault = (DefaultAddressId.HasValue && address.Id == DefaultAddressId.Value);
+            }
+        }
+
+        _context.Update(user);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("Index", "Home");
     }
 
     string HashPassword(User model)

@@ -21,7 +21,7 @@ public partial class Address
 
     public string? Country { get; set; }
 
-    public bool? IsDefault { get; set; }
+    public bool IsDefault { get; set; }
 
     public virtual ICollection<OrderTable> OrderTables { get; set; } = new List<OrderTable>();
 
