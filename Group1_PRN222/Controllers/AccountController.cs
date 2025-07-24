@@ -121,7 +121,10 @@ public class AccountController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
-        var user = await _context.Users.FindAsync(id);
+        var user = await _context.Users
+            .Include(u => u.Addresses)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
         if (user == null)
         {
             return NotFound();
@@ -138,21 +141,21 @@ public class AccountController : Controller
             return NotFound();
         }
 
-        if (!ModelState.IsValid)
-        {
-            // Reload addresses for the view if model state is invalid
-            var userWithAddresses = await _context.Users
-                .Include(u => u.Addresses)
-                .FirstOrDefaultAsync(u => u.Id == id);
-            return View(userWithAddresses ?? model);
-        }
-
+        // Always load the user with addresses for update and for redisplay on error
         var user = await _context.Users
             .Include(u => u.Addresses)
             .FirstOrDefaultAsync(u => u.Id == id);
+
         if (user == null)
         {
             return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            // Repopulate addresses for the view
+            model.Addresses = user.Addresses;
+            return View(model);
         }
 
         // Update user properties
@@ -168,7 +171,6 @@ public class AccountController : Controller
                 var fileName = $"avatar_{user.Id}_{DateTime.UtcNow.Ticks}{ext}";
                 var filePath = Path.Combine("wwwroot", "avatars", fileName);
 
-                // Ensure the avatars directory exists
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
@@ -176,17 +178,13 @@ public class AccountController : Controller
                     await AvatarFile.CopyToAsync(stream);
                 }
 
-                // Save the relative path to the database
                 user.AvatarUrl = $"/avatars/{fileName}";
             }
             else
             {
                 ModelState.AddModelError("AvatarFile", "Only PNG files are allowed.");
-                // Reload addresses for the view if model state is invalid
-                var userWithAddresses = await _context.Users
-                    .Include(u => u.Addresses)
-                    .FirstOrDefaultAsync(u => u.Id == id);
-                return View(userWithAddresses ?? model);
+                model.Addresses = user.Addresses;
+                return View(model);
             }
         }
 

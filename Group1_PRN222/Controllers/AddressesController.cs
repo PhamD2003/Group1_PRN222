@@ -50,6 +50,16 @@ public class AddressesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create([Bind("FullName,Phone,Street,City,State,Country")] Address address)
     {
+        // Get the current user's ID from session
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+        {
+            // Not logged in or session expired
+            return RedirectToAction("Login", "Account");
+        }
+
+        address.UserId = userId.Value;
+
         if (ModelState.IsValid)
         {
             _context.Add(address);
@@ -80,6 +90,12 @@ public class AddressesController : Controller
         if (id != address.Id)
             return NotFound();
 
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return RedirectToAction("Login", "Account");
+
+        address.UserId = userId.Value;
+
         if (ModelState.IsValid)
         {
             try
@@ -89,7 +105,7 @@ public class AddressesController : Controller
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!AddressExists(address.Id))
+                if (!_context.Addresses.Any(e => e.Id == address.Id))
                     return NotFound();
                 else
                     throw;
@@ -126,6 +142,42 @@ public class AddressesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetDefault(int? DefaultAddressId)
+    {
+        if (DefaultAddressId == null)
+        {
+            // Optionally, add a message to TempData or ModelState
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Find the address to set as default
+        var address = await _context.Addresses
+            .Include(a => a.User)
+            .FirstOrDefaultAsync(a => a.Id == DefaultAddressId.Value);
+
+        if (address == null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Get all addresses for the same user
+        var userId = address.UserId;
+        var userAddresses = await _context.Addresses
+            .Where(a => a.UserId == userId)
+            .ToListAsync();
+
+        // Set all to not default, then set the selected one as default
+        foreach (var addr in userAddresses)
+        {
+            addr.IsDefault = (addr.Id == address.Id);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("Edit", "Account", new { id = userId });
+    }
     private bool AddressExists(int id)
     {
         return _context.Addresses.Any(e => e.Id == id);
