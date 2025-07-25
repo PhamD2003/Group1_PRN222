@@ -54,8 +54,9 @@
                         <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
                         <form action="/Auction/Bid" method="post" class="d-flex align-items-center gap-2">
                             <input type="hidden" name="productId" value="@Model.Id" />
-                            <input type="number" name="amount" class="form-control" placeholder="Nhập giá đấu" required min="@Model.StartPrice" step="1000" style="max-width: 150px;" />
-                            <button type="submit" class="btn btn-warning text-white">⚔️ Đặt giá đấu</button>
+                            <button type="button" class="btn btn-warning text-white" data-bs-toggle="modal" data-bs-target="#bidModal">
+                                ⚔️ Đặt giá đấu
+                            </button>
                         </form>
 }
 else if (Model.Inventories != null && Model.Inventories.Any())
@@ -176,4 +177,34 @@ else
     {
         <p class="text-muted">Chưa có đánh giá nào cho sản phẩm này.</p>
     }
+    <!-- Modal Đặt Giá -->
+    <div class="modal fade" id="bidModal" tabindex="-1" aria-labelledby="bidModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" action="/Auction/Bid">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bidModalLabel">⚔️ Đặt giá cho: @Model.Title</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="productId" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Nhập số tiền (VNĐ):</label>
+                            <input type="number" name="amount" class="form-control" step="1" min="@Model.StartPrice" required />
+                            <div class="form-text">
+                                Giá hiện tại: <strong>@(((decimal?)ViewBag.CurrentPrice)?.ToString("N0")) VNĐ</strong>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Xác nhận đấu giá</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
 </div>
