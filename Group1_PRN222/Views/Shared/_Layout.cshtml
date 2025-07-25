@@ -22,17 +22,7 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Product" asp-action="Index">Trang chủ</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Cart" asp-action="Index">
-                                Giỏ hàng
-                                @{
-                                    // Để hiển thị số lượng sản phẩm trong giỏ hàng trên navbar
-                                    // Bạn cần truyền dữ liệu này từ Controller hoặc tạo một View Component
-                                    // Tạm thời bỏ qua nếu không cần thiết ngay lập tức để tránh phức tạp
-                                    // Hoặc bạn có thể dùng AJAX để cập nhật số lượng
-                                }
-                            </a>
-                        </li>
+                 
                     </ul>
                     <partial name="_LoginPartial" />
                 </div>

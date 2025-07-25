@@ -1,5 +1,6 @@
 ﻿using Group1_PRN222.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Group1_PRN222.Controllers
 {
@@ -23,10 +24,15 @@ namespace Group1_PRN222.Controllers
         public IActionResult Details(int id)
         {
             var product = _context.Products.FirstOrDefault(p => p.Id == id);
-            var bids = _context.Bids.Where(b => b.ProductId == id)
-                                   .OrderByDescending(b => b.Amount)
-                                   .ToList();
+            var bids = _context.Bids
+        .Include(b => b.Bidder) // Nạp thêm thông tin User (Bidder)
+        .Where(b => b.ProductId == id)
+        .OrderByDescending(b => b.Amount)
+        .ToList();
+
             ViewBag.Bids = bids;
+
+
             return View(product);
         }
 
@@ -40,15 +46,23 @@ namespace Group1_PRN222.Controllers
                 return RedirectToAction("Login", "Account");
 
             var product = _context.Products.FirstOrDefault(p => p.Id == productId);
-            if (product == null || product.AuctionEndTime <= DateTime.Now)
-                return BadRequest("Sản phẩm không hợp lệ hoặc đã hết hạn");
+            if (product == null)
+            {
+                TempData["Error"] = "Sản phẩm không tồn tại.";
+                return RedirectToAction("Details", new { id = productId });
+            }
+
+            if (product.AuctionEndTime <= DateTime.Now)
+            {
+                TempData["Error"] = "Phiên đấu giá đã kết thúc.";
+                return RedirectToAction("Details", new { id = productId });
+            }
 
             var highestBid = _context.Bids
                 .Where(b => b.ProductId == productId)
                 .OrderByDescending(b => b.Amount)
                 .FirstOrDefault();
 
-            // ⚠️ Kiểm tra nếu chưa ai đặt giá → dùng StartPrice
             if (highestBid == null)
             {
                 if (amount < product.StartPrice)
@@ -82,6 +96,7 @@ namespace Group1_PRN222.Controllers
 
 
 
+
         // 4. Lịch sử đấu giá của bản thân
         public IActionResult MyBids()
         {
@@ -89,29 +104,25 @@ namespace Group1_PRN222.Controllers
             if (userId == null) return RedirectToAction("Login", "User");
 
             var myBids = _context.Bids
+                .Include(b => b.Product)
+                    .ThenInclude(p => p.Bids)
                 .Where(b => b.BidderId == userId)
                 .OrderByDescending(b => b.BidTime)
                 .ToList();
 
+            // Lấy danh sách sản phẩm đã thắng
+            var wonProducts = _context.Products
+                .Where(p => p.IsAuction == true && p.AuctionEndTime < DateTime.Now)
+                .Include(p => p.Bids)
+                .ToList()
+                .Where(p => p.Bids.OrderByDescending(b => b.Amount).FirstOrDefault()?.BidderId == userId)
+                .ToList();
+
+            ViewBag.WonProducts = wonProducts;
+
             return View(myBids);
         }
 
-        // 5. Sản phẩm đã thắng
-        public IActionResult WonAuctions()
-        {
-            var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null) return RedirectToAction("Login", "User");
 
-            var won = _context.Products
-                .Where(p => p.IsAuction == true && p.AuctionEndTime < DateTime.Now)
-                .Where(p =>
-                    _context.Bids
-                    .Where(b => b.ProductId == p.Id)
-                    .OrderByDescending(b => b.Amount)
-                    .FirstOrDefault().BidderId == userId)
-                .ToList();
-
-            return View(won);
-        }
     }
 }

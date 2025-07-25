@@ -12,18 +12,49 @@
         @if (TempData["Error"] != null)
         {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>⚠️ Lỗi:</strong> @TempData["Error"]
+                <strong></strong> @TempData["Error"]
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
             </div>
         }
         <h2 class="text-primary fw-bold mb-2">@Model.Title</h2>
         <p class="text-muted mb-3">@Model.Description</p>
-        <p>🕒 <strong>Thời gian kết thúc:</strong> @Model.AuctionEndTime?.ToString("dd/MM/yyyy HH:mm")</p>
+        <p> <strong>Thời gian kết thúc:</strong> @Model.AuctionEndTime?.ToString("dd/MM/yyyy HH:mm")</p>
+        <p> <strong>Thời gian còn lại:</strong> <span id="countdown"></span></p>
 
+        @section Scripts {
+            <script>
+                const endTime = new Date('@Model.AuctionEndTime?.ToString("o")').getTime();
+
+                function updateCountdown() {
+                    const now = new Date().getTime();
+                    const distance = endTime - now;
+
+                    if (distance < 0) {
+                        document.getElementById("countdown").innerHTML = "Đã kết thúc";
+                        return;
+                    }
+
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    let timeLeft = '';
+                    if (days > 0) timeLeft += `${days} ngày `;
+                    timeLeft += `${hours} giờ ${minutes} phút ${seconds} giây`;
+
+                    document.getElementById("countdown").innerHTML = timeLeft;
+                }
+
+
+                setInterval(updateCountdown, 1000);
+                updateCountdown();
+            </script>
+        }
         <hr />
 
         <div class="mb-4">
-            <h4 class="text-success">💰 Giá hiện tại: <span class="fw-bold">@currentPrice?.ToString("N0") VNĐ</span></h4>
+            <h4 class="text-success"> Giá hiện tại: <span class="fw-bold">@currentPrice?.ToString("N0") VNĐ</span></h4>
         </div>
 
         <form method="post" action="/Auction/Bid" class="row g-3 align-items-center mb-4">
@@ -35,13 +66,13 @@
                 <input type="number" name="amount" class="form-control" step="1" min="0"/>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-warning text-white fw-bold">⚔️ Đặt giá</button>
+                <button type="submit" class="btn btn-warning text-white fw-bold"> Đặt giá</button>
             </div>
         </form>
 
         <hr />
 
-        <h5 class="fw-bold mb-3">📜 Lịch sử đấu giá</h5>
+        <h5 class="fw-bold mb-3"> Lịch sử đấu giá</h5>
         @if (bids != null && bids.Count > 0)
         {
             <div class="list-group">
@@ -50,11 +81,13 @@
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
                             <strong class="text-danger">@b.Amount?.ToString("N0") VNĐ</strong>
-                            bởi người dùng ID: <strong>@b.BidderId</strong>
+                            bởi người dùng: <strong>@b.Bidder?.Username</strong>
                         </div>
                         <small class="text-muted">@b.BidTime?.ToString("dd/MM/yyyy HH:mm:ss")</small>
                     </div>
                 }
+
+
             </div>
         }
         else
@@ -67,3 +100,5 @@
         </div>
     </div>
 </div>
+
+

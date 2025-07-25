@@ -13,35 +13,66 @@
                 <p class="text-muted mt-2">@Model.Description</p>
                 @if (Model.IsAuction == true)
                 {
-                    <p class="fs-5">💰 <strong class="text-danger">Giá khởi điểm: @Model.StartPrice?.ToString("N0") VNĐ</strong></p>
-                    <p class="fs-5">🛒 <strong class="text-success">Giá mua ngay: @Model.Price?.ToString("N0") VNĐ</strong></p>
+                    <p class="fs-5"> <strong class="text-danger">Giá khởi điểm: @Model.StartPrice?.ToString("N0") VNĐ</strong></p>
+                    <p class="fs-5"> <strong class="text-success">Giá mua ngay: @Model.Price?.ToString("N0") VNĐ</strong></p>
                 }
                 else
                 {
-                    <p class="fs-5">💰 <strong class="text-danger">@Model.Price?.ToString("N0") VNĐ</strong></p>
+                    <p class="fs-5"> <strong class="text-danger">@Model.Price?.ToString("N0") VNĐ</strong></p>
                 }
 
-                <p>📂 Danh mục: <strong>@Model.Category?.Name</strong></p>
+                <p> Danh mục: <strong>@Model.Category?.Name</strong></p>
                 @if (Model.Inventories != null && Model.Inventories.Any())
                 {
                     var productInventory = Model.Inventories.FirstOrDefault(); // Lấy mục Inventory đầu tiên
                     if (productInventory != null && productInventory.Quantity.HasValue)
                     {
-                        <p>📦 Còn hàng: <strong class="text-primary">@productInventory.Quantity.Value</strong></p>
+                        <p> Còn hàng: <strong class="text-primary">@productInventory.Quantity.Value</strong></p>
                     }
                     else
                     {
-                        <p>📦 Còn hàng: <strong class="text-danger">Không xác định hoặc hết hàng</strong></p>
+                        <p> Còn hàng: <strong class="text-danger">Không xác định hoặc hết hàng</strong></p>
                     }
                 }
                 else
                 {
-                    <p>📦 Còn hàng: <strong class="text-danger">Không có thông tin tồn kho</strong></p>
+                    <p> Còn hàng: <strong class="text-danger">Không có thông tin tồn kho</strong></p>
                 }
 
                 @if (Model.IsAuction.HasValue && Model.IsAuction.Value) // Hoặc chỉ Model.IsAuction == true
                 {
-                    <p>⏰ Thời gian kết thúc đấu giá: <strong class="text-info">@(Model.AuctionEndTime?.ToString("dd/MM/yyyy HH:mm"))</strong></p>
+                    <p> Thời gian kết thúc đấu giá: <strong class="text-info">@(Model.AuctionEndTime?.ToString("dd/MM/yyyy HH:mm"))</strong></p>
+                    <p> <strong>Thời gian còn lại:</strong> <span id="countdown"></span></p>
+                    @section Scripts {
+                    <script>
+                        const endTime = new Date('@Model.AuctionEndTime?.ToString("o")').getTime();
+
+                        function updateCountdown() {
+                            const now = new Date().getTime();
+                            const distance = endTime - now;
+
+                            if (distance < 0) {
+                                document.getElementById("countdown").innerHTML = "Đã kết thúc";
+                                return;
+                            }
+
+                            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                            let timeLeft = '';
+                            if (days > 0) timeLeft += `${days} ngày `;
+                            timeLeft += `${hours} giờ ${minutes} phút ${seconds} giây`;
+
+                            document.getElementById("countdown").innerHTML = timeLeft;
+                        }
+
+
+                        setInterval(updateCountdown, 1000);
+                        updateCountdown();
+                    </script>
+                    }
                 }
 
                 <div class="mt-4 d-flex gap-3 flex-wrap">
@@ -49,13 +80,13 @@
 {
                         <form asp-controller="Cart" asp-action="Add" asp-route-productId="@Model.Id" method="post" class="d-inline-block">
                             <input type="hidden" name="quantity" value="1" />
-                            <button type="submit" class="btn btn-primary">🛒 Thêm vào giỏ hàng</button>
+                            <button type="submit" class="btn btn-primary"> Thêm vào giỏ hàng</button>
                         </form>
-                        <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
+                        <a href="/Order/Create/@Model.Id" class="btn btn-success"> Đặt hàng ngay</a>
                         <form action="/Auction/Bid" method="post" class="d-flex align-items-center gap-2">
                             <input type="hidden" name="productId" value="@Model.Id" />
                             <button type="button" class="btn btn-warning text-white" data-bs-toggle="modal" data-bs-target="#bidModal">
-                                ⚔️ Đặt giá đấu
+                                 Đặt giá đấu
                             </button>
                         </form>
 }
@@ -66,9 +97,9 @@ else if (Model.Inventories != null && Model.Inventories.Any())
     {
         <form asp-controller="Cart" asp-action="Add" asp-route-productId="@Model.Id" method="post" class="d-inline-block">
             <input type="hidden" name="quantity" value="1" /> 
-            <button type="submit" class="btn btn-primary">🛒 Thêm vào giỏ hàng</button>
+            <button type="submit" class="btn btn-primary"> Thêm vào giỏ hàng</button>
         </form>
-                            <a href="/Order/Create/@Model.Id" class="btn btn-success">🛍️ Đặt hàng ngay</a>
+                            <a href="/Order/Create/@Model.Id" class="btn btn-success"> Đặt hàng ngay</a>
     }
     else
     {
@@ -85,7 +116,7 @@ else
         </div>
     </div>
 
-    <h3 class="mt-5 mb-3">🧩 Sản phẩm tương tự</h3>
+    <h3 class="mt-5 mb-3"> Sản phẩm tương tự</h3>
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4">
         @foreach (var item in (List<Group1_PRN222.Models.Product>)ViewBag.Related)
         {
@@ -96,7 +127,7 @@ else
                     </a>
                     <div class="card-body">
                         <h5 class="card-title">@item.Title</h5>
-                        <p class="card-text">@item.Price VNĐ</p>
+                        <p class="card-text">@item.Price?.ToString("N0") VNĐ</p>
                         @if (item.Inventories != null && item.Inventories.Any())
                         {
                             var relatedProductInventory = item.Inventories.FirstOrDefault();
@@ -119,7 +150,7 @@ else
             </div>
         }
     </div>
-    <h3 class="mt-5">📝 Đánh giá sản phẩm</h3>
+    <h3 class="mt-5"> Đánh giá sản phẩm</h3>
     <form method="get" class="mb-3">
         <label for="ratingFilter" class="form-label fw-bold">Lọc theo số sao:</label>
         <select name="rating" id="ratingFilter" class="form-select w-auto d-inline-block" onchange="this.form.submit()">
@@ -144,7 +175,7 @@ else
 
     <div class="mb-4">
         <a asp-controller="Review" asp-action="Create" asp-route-productId="@Model.Id" class="btn btn-outline-primary">
-            ✍️ Viết đánh giá
+             Viết đánh giá
         </a>
     </div>
 

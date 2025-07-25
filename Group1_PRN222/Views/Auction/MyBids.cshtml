@@ -1,13 +1,83 @@
 ﻿@model List<Bid>
-<h2>Lịch sử đấu giá của tôi</h2>
-<table>
-    <tr><th>Sản phẩm</th><th>Giá</th><th>Thời gian</th></tr>
-    @foreach (var b in Model)
-    {
-        <tr>
-            <td>@b.ProductId</td>
-            <td>@b.Amount</td>
-            <td>@b.BidTime</td>
-        </tr>
-    }
-</table>
+@{
+    var wonProducts = ViewBag.WonProducts as List<Product>;
+    Layout = "_Layout";
+    ViewData["Title"] = "Lịch sử đấu giá của tôi";
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Lịch sử đấu giá của tôi</h4>
+        </div>
+        <div class="card-body">
+            @if (!Model.Any())
+            {
+                <p class="text-muted">Bạn chưa tham gia đấu giá sản phẩm nào.</p>
+            }
+            else
+            {
+                <table class="table table-bordered table-hover align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>Giá đặt (VNĐ)</th>
+                            <th>Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @if (b.Product != null)
+                                    {
+                                        <a href="/Auction/Details/@b.ProductId" class="text-decoration-none fw-semibold text-primary">
+                                            @b.Product.Title
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Không rõ</span>
+                                    }
+                                </td>
+                                <td class="text-danger fw-bold">@b.Amount?.ToString("N0")</td>
+                                <td>@b.BidTime?.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+</div>
+@if (wonProducts != null && wonProducts.Any())
+{
+    <div class="container mt-5">
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Sản phẩm bạn đã thắng</h5>
+            </div>
+            <div class="card-body">
+                @foreach (var item in wonProducts)
+                {
+                    var topBid = item.Bids.OrderByDescending(b => b.Amount).FirstOrDefault();
+                    <div class="border p-3 mb-3 rounded bg-light">
+                        <h5 class="text-primary">@item.Title</h5>
+                        <div class="text-center mb-4">
+                            <img src="@item.Images" alt="Ảnh sản phẩm" class="img-fluid rounded" style="max-height: 300px;" />
+                        </div>
+                        <p><strong>Mô tả:</strong> @item.Description</p>
+                        <p><strong>Giá thắng:</strong> <span class="text-danger fw-bold">@topBid?.Amount?.ToString("N0") VNĐ</span></p>
+                        <form asp-controller="Cart" asp-action="Add" asp-route-productId="@item.Id" method="post" class="d-inline-block ms-2">
+                            <input type="hidden" name="quantity" value="1" />
+                            <button type="submit" class="btn btn-sm btn-primary">🛒 Thêm</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+

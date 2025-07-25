@@ -17,11 +17,11 @@ namespace Group1_PRN222.Controllers
         }
 
         // GET: /Product
-        public async Task<IActionResult> Index(string search, string category, int page = 1, int pageSize = 5)
+        public async Task<IActionResult> Index(string search, string category, int page = 1, int pageSize = 5, bool isAuction = false)
         {
             var query = _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Inventories) 
+                .Include(p => p.Inventories)
                 .AsQueryable();
 
             // Tìm kiếm
@@ -35,7 +35,10 @@ namespace Group1_PRN222.Controllers
             {
                 query = query.Where(p => p.Category.Name == category);
             }
-
+            if (isAuction)
+            {
+                query = query.Where(p => _context.Bids.Any(b => b.ProductId == p.Id));
+            }
             // Tổng số sản phẩm
             int totalProducts = await query.CountAsync();
 
@@ -52,7 +55,13 @@ namespace Group1_PRN222.Controllers
             ViewBag.Category = category;
             ViewBag.Search = search;
             ViewBag.Categories = await _context.Categories.ToListAsync();
-
+            ViewBag.IsAuction = isAuction;
+            ViewBag.AuctionProducts = await _context.Products.Include(p => p.Category)
+                                                             .Include(p => p.Inventories)
+                                                             .Where(p => _context.Bids.Any(b => b.ProductId == p.Id)) // hoặc p.IsAuction == true nếu có field đó
+                                                             .OrderByDescending(p => p.Id)
+                                                             .Take(5)
+                                                             .ToListAsync();
             return View(products);
         }
 

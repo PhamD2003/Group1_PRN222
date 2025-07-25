@@ -52,23 +52,28 @@
 
  <div class="row mb-4" style="margin-top: 20px">
     <div class="col-12">
-        <form method="get" asp-action="Index" class="d-flex justify-content-between">
-            <input type="text" name="search" class="form-control w-50 me-2" placeholder="Tìm kiếm..." value="@Context.Request.Query["search"]" />
-
-                <select name="category" class="form-select w-25 me-2" onchange="this.form.submit()">
-                <option value="">Tất cả danh mục</option>
-                @foreach (var cat in ViewBag.Categories as List<Group1_PRN222.Models.Category>)
-                {
-                        <option value="@cat.Name" selected="@(selectedCategory == cat.Name)">
-                            @cat.Name
-                        </option>
-                }
-            </select>
            
-        </form>
+                <form method="get" asp-action="Index" class="d-flex justify-content-between align-items-center">
+                    <input type="text" name="search" class="form-control w-50 me-2" placeholder="Tìm kiếm..." value="@Context.Request.Query["search"]" />
+
+                    <select name="category" class="form-select w-25 me-2" onchange="this.form.submit()">
+                        <option value="">Tất cả danh mục</option>
+                        @foreach (var cat in ViewBag.Categories as List<Group1_PRN222.Models.Category>)
+                        {
+                            <option value="@cat.Name" selected="@(selectedCategory == cat.Name)">
+                                @cat.Name
+                            </option>
+                        }
+                    </select>
+
+            
+                </form>
+            
+
     </div>
 </div>
 
+    <h3 class="mb-3 text-center" style="margin-right: 1000px"> Danh sách sản phẩm</h3>
 
     <div class="row">
         @foreach (var item in Model)
@@ -117,6 +122,33 @@
             </div>
         }
     </div>
+    @if (ViewBag.AuctionProducts != null && ((List<Group1_PRN222.Models.Product>)ViewBag.AuctionProducts).Any())
+    {
+        <h3 class="mb-3 text-center" style="margin-right: 1000px"> Sản phẩm đấu giá</h3>
+        <div class="row mb-5">
+            @foreach (var item in (List<Group1_PRN222.Models.Product>)ViewBag.AuctionProducts)
+            {
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100 shadow-sm border border-warning">
+                        <a href="/Product/Details/@item.Id">
+                            <img src="@item.Images" class="card-img-top" style="height: 200px; object-fit: cover;" alt="@item.Title" />
+                        </a>
+                        <div class="card-body">
+                            <h6 class="card-title text-warning">@item.Title</h6>
+                            <p class="card-text"><strong>Giá khởi điểm:</strong> @item.StartPrice?.ToString("N0") VNĐ</p>
+                            @if (item.Inventories != null && item.Inventories.Any())
+                            {
+                                var inv = item.Inventories.FirstOrDefault();
+                                <p class="card-text"><strong>Còn hàng:</strong><span class="text-primary fw-bold"> @inv?.Quantity</span></p>
+                            }
+                            <a href="/Auction/Details/@item.Id" class="btn btn-sm btn-warning mt-2">Tham gia đấu giá</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
 
     <nav class="d-flex justify-content-center mt-4">
         <ul class="pagination">
