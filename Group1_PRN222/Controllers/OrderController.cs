@@ -1,4 +1,4 @@
-// Controllers/OrderController.cs - Updated for Cart Integration
+// Controllers/OrderController.cs - Updated with Real Authentication
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Group1_PRN222.Models;
@@ -16,31 +16,71 @@ namespace Group1_PRN222.Controllers
             _context = context;
         }
 
-        #region Mock Methods (Temporary - sẽ thay thế khi có authentication)
+        #region Authentication & Address Methods (Updated - Real Implementation)
 
         /// <summary>
-        /// Mock user ID - thay thế khi có authentication từ Member 1
+        /// Get current logged-in user ID from session
         /// </summary>
-        private int GetCurrentUserId() => 1; // TODO: Replace with real authentication
-
-        /// <summary>
-        /// Mock address - thay thế khi có address management từ Member 1
-        /// </summary>
-        private Address GetMockDefaultAddress()
+        private int? GetCurrentUserId()
         {
-            return new Address
-            {
-                Id = 1,
-                UserId = 1,
-                FullName = "Nguyen Van Test",
-                Phone = "0123456789",
-                Street = "123 Test Street",
-                City = "Ho Chi Minh",
-                State = "Ho Chi Minh",
-                Country = "Vietnam",
-                IsDefault = true
-            };
+            return HttpContext.Session.GetInt32("UserId");
         }
+
+        /// <summary>
+        /// Get current logged-in username from session
+        /// </summary>
+        private string? GetCurrentUsername()
+        {
+            return HttpContext.Session.GetString("Username");
+        }
+
+        /// <summary>
+        /// Check if user is authenticated
+        /// </summary>
+        private bool IsUserAuthenticated()
+        {
+            var userId = GetCurrentUserId();
+            var username = GetCurrentUsername();
+            return userId.HasValue && !string.IsNullOrEmpty(username);
+        }
+
+        /// <summary>
+        /// Get user's default address from database
+        /// </summary>
+        private async Task<Address?> GetUserDefaultAddressAsync(int userId)
+        {
+            return await _context.Addresses
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.IsDefault == true);
+        }
+
+        /// <summary>
+        /// Get all user addresses from database
+        /// </summary>
+        private async Task<List<Address>> GetUserAddressesAsync(int userId)
+        {
+            return await _context.Addresses
+                .Where(a => a.UserId == userId)
+                .OrderByDescending(a => a.IsDefault)
+                .ThenBy(a => a.Id)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Redirect to login if not authenticated
+        /// </summary>
+        private IActionResult RedirectToLoginIfNotAuthenticated()
+        {
+            if (!IsUserAuthenticated())
+            {
+                TempData["Error"] = "Vui lòng đăng nhập để tiếp tục.";
+                return RedirectToAction("Login", "Account");
+            }
+            return null!; // Continue with normal flow
+        }
+
+        #endregion
+
+        #region Helper Methods
 
         /// <summary>
         /// Get cart items from session (integration with Member 2)
@@ -63,15 +103,32 @@ namespace Group1_PRN222.Controllers
             HttpContext.Session.Remove(CART_SESSION_KEY);
         }
 
+        /// <summary>
+        /// Calculate shipping fee based on cart items
+        /// </summary>
+        private decimal CalculateShippingFee(List<CartItem> cartItems)
+        {
+            // Simple shipping calculation - can be enhanced later
+            decimal baseShippingFee = 30000; // 30k VND base fee
+            decimal weightFee = cartItems.Sum(item => item.Quantity) * 5000; // 5k per item
+            return baseShippingFee + weightFee;
+        }
+
         #endregion
 
-        #region Main Order Workflow (Tích hợp với Cart của Member 2)
+        #region Main Order Workflow (Updated with Real Authentication)
 
         /// <summary>
         /// GET: /Order/Checkout - Checkout từ Cart (URL từ button "Tiến hành thanh toán")
         /// </summary>
         public async Task<IActionResult> Checkout()
         {
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return authCheck;
+
+            var userId = GetCurrentUserId()!.Value;
+
             // Lấy cart items từ session (Member 2's implementation)
             var cartItems = GetCartItemsFromSession();
 
@@ -102,6 +159,16 @@ namespace Group1_PRN222.Controllers
                 }
             }
 
+            // Get user's addresses
+            var userAddresses = await GetUserAddressesAsync(userId);
+            var defaultAddress = await GetUserDefaultAddressAsync(userId);
+
+            if (!userAddresses.Any())
+            {
+                TempData["Error"] = "Bạn chưa có địa chỉ giao hàng. Vui lòng thêm địa chỉ trước khi đặt hàng.";
+                return RedirectToAction("Edit", "Account", new { id = userId });
+            }
+
             // Tính toán chi phí
             decimal subtotal = cartItems.Sum(item => item.TotalPrice);
             decimal shippingFee = CalculateShippingFee(cartItems);
@@ -111,7 +178,8 @@ namespace Group1_PRN222.Controllers
             ViewBag.Subtotal = subtotal;
             ViewBag.ShippingFee = shippingFee;
             ViewBag.Total = total;
-            ViewBag.DefaultAddress = GetMockDefaultAddress();
+            ViewBag.UserAddresses = userAddresses;
+            ViewBag.DefaultAddress = defaultAddress;
 
             return View();
         }
@@ -122,6 +190,12 @@ namespace Group1_PRN222.Controllers
         [HttpPost]
         public async Task<IActionResult> Checkout(int addressId, string paymentMethod, string notes = "")
         {
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return Json(new { success = false, message = "Vui lòng đăng nhập để tiếp tục." });
+
+            var userId = GetCurrentUserId()!.Value;
+
             try
             {
                 var cartItems = GetCartItemsFromSession();
@@ -131,15 +205,24 @@ namespace Group1_PRN222.Controllers
                     return Json(new { success = false, message = "Giỏ hàng trống." });
                 }
 
-                // Tính toán lại để đảm bảo accuracy
+                // Validate address belongs to user
+                var address = await _context.Addresses
+                    .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId);
+
+                if (address == null)
+                {
+                    return Json(new { success = false, message = "Địa chỉ không hợp lệ." });
+                }
+
+                // Calculate total
                 decimal subtotal = cartItems.Sum(item => item.TotalPrice);
                 decimal shippingFee = CalculateShippingFee(cartItems);
                 decimal total = subtotal + shippingFee;
 
-                // Tạo đơn hàng
+                // Create order
                 var order = new OrderTable
                 {
-                    BuyerId = GetCurrentUserId(),
+                    BuyerId = userId,
                     AddressId = addressId,
                     OrderDate = DateTime.Now,
                     TotalPrice = total,
@@ -149,10 +232,9 @@ namespace Group1_PRN222.Controllers
                 _context.OrderTables.Add(order);
                 await _context.SaveChangesAsync();
 
-                // Tạo OrderItems và cập nhật tồn kho
+                // Create order items
                 foreach (var item in cartItems)
                 {
-                    // Tạo OrderItem
                     var orderItem = new OrderItem
                     {
                         OrderId = order.Id,
@@ -163,7 +245,7 @@ namespace Group1_PRN222.Controllers
 
                     _context.OrderItems.Add(orderItem);
 
-                    // Cập nhật tồn kho
+                    // Update inventory
                     var inventory = await _context.Inventories
                         .FirstOrDefaultAsync(i => i.ProductId == item.ProductId);
 
@@ -174,241 +256,96 @@ namespace Group1_PRN222.Controllers
                     }
                 }
 
-                await _context.SaveChangesAsync();
-
-                // Clear cart sau khi đặt hàng thành công
-                ClearCart();
-
-                return Json(new {
-                    success = true,
-                    message = "Đặt hàng thành công!",
-                    orderId = order.Id,
-                    redirectUrl = Url.Action("Payment", new { orderId = order.Id, method = paymentMethod })
-                });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
-            }
-        }
-        //update : /Order/Create/{productId} - Tạo đơn hàng từ sản phẩm cụ thể (từ ProductController)
-        [HttpGet("/Order/Create/{productId}")]
-        public async Task<IActionResult> Create(int productId)
-        {
-            var product = await _context.Products
-                .Include(p => p.Inventories)
-                .FirstOrDefaultAsync(p => p.Id == productId);
-
-            if (product == null)
-            {
-                TempData["Error"] = "Sản phẩm không tồn tại.";
-                return RedirectToAction("Index", "Product");
-            }
-
-            var inventory = product.Inventories.FirstOrDefault();
-            if (inventory == null || inventory.Quantity <= 0)
-            {
-                TempData["Error"] = "Sản phẩm đã hết hàng.";
-                return RedirectToAction("Details", "Product", new { id = productId });
-            }
-
-            // Tạo một danh sách giỏ hàng tạm thời chỉ chứa sản phẩm đó
-            var tempCart = new List<CartItem>
-    {
-        new CartItem
-        {
-            ProductId = product.Id,
-            ProductName = product.Title,
-            Quantity = 1,
-            Price = product.Price ?? 0,
-             ImageUrl = product.Images
-?.Split(',').FirstOrDefault() ?? string.Empty,
-        }
-    };
-
-            // Lưu vào session (ghi đè session Cart cũ)
-            HttpContext.Session.SetString("Cart", JsonSerializer.Serialize(tempCart));
-
-            // Redirect tới trang checkout như bình thường
-            return RedirectToAction("Checkout");
-        }
-
-
-        /// <summary>
-        /// Calculate shipping fee based on cart items
-        /// </summary>
-        private decimal CalculateShippingFee(List<CartItem> cartItems)
-        {
-            // Logic tính phí ship - có thể phức tạp hóa sau
-            decimal totalValue = cartItems.Sum(item => item.TotalPrice);
-
-            if (totalValue >= 500000) // Miễn phí ship cho đơn >= 500k
-                return 0;
-
-            return 30000; // Phí ship cố định 30k
-        }
-
-        #endregion
-
-        #region Payment Processing
-
-        /// <summary>
-        /// GET: /Order/Payment/{orderId} - Trang thanh toán
-        /// </summary>
-        public async Task<IActionResult> Payment(int orderId, string method = "")
-        {
-            var userId = GetCurrentUserId();
-
-            var order = await _context.OrderTables
-                .Where(o => o.Id == orderId && o.BuyerId == userId)
-                .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                .Include(o => o.Address)
-                .FirstOrDefaultAsync();
-
-            if (order == null)
-            {
-                TempData["Error"] = "Không tìm thấy đơn hàng.";
-                return RedirectToAction("History");
-            }
-
-            ViewBag.PreselectedMethod = method;
-            return View(order);
-        }
-
-        /// <summary>
-        /// POST: /Order/ProcessPayment - Xử lý thanh toán
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> ProcessPayment(int orderId, string paymentMethod)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var order = await _context.OrderTables
-                    .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == userId);
-
-                if (order == null)
-                {
-                    return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
-                }
-
-                // Tạo Payment record
+                // Create payment record
                 var payment = new Payment
                 {
-                    OrderId = orderId,
+                    OrderId = order.Id,
                     UserId = userId,
-                    Amount = order.TotalPrice,
+                    Amount = total,
                     Method = paymentMethod,
-                    Status = paymentMethod == "COD" ? "Pending" : "Processing",
+                    Status = paymentMethod == "COD" ? "Pending" : "Paid",
                     PaidAt = paymentMethod == "COD" ? null : DateTime.Now
                 };
 
                 _context.Payments.Add(payment);
 
-                // Cập nhật order status
-                order.Status = paymentMethod == "COD" ? "Confirmed" : "Processing";
+                // Create shipping info
+                var shipping = new ShippingInfo
+                {
+                    OrderId = order.Id,
+                    Carrier = "Giao hàng tiết kiệm",
+                    TrackingNumber = $"GHN{order.Id:D8}",
+                    Status = "Preparing",
+                    EstimatedArrival = DateTime.Now.AddDays(3)
+                };
+
+                _context.ShippingInfos.Add(shipping);
 
                 await _context.SaveChangesAsync();
 
-                // Simulate payment processing time for PayPal
-                if (paymentMethod == "PayPal")
-                {
-                    await Task.Delay(2000); // Simulate API call
+                // Clear cart after successful order
+                ClearCart();
 
-                    payment.Status = "Completed";
-                    payment.PaidAt = DateTime.Now;
-                    order.Status = "Confirmed";
-
-                    await _context.SaveChangesAsync();
-                }
-
-                return Json(new {
-                    success = true,
-                    message = $"Thanh toán {paymentMethod} thành công!",
-                    redirectUrl = Url.Action("Confirmation", new { orderId = orderId })
-                });
+                return Json(new { success = true, orderId = order.Id, message = "Đặt hàng thành công!" });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Lỗi thanh toán: " + ex.Message });
+                return Json(new { success = false, message = $"Có lỗi xảy ra: {ex.Message}" });
             }
         }
 
         /// <summary>
-        /// GET: /Order/Confirmation/{orderId} - Xác nhận đơn hàng
+        /// GET: /Order/History - Xem lịch sử đơn hàng
         /// </summary>
-        public async Task<IActionResult> Confirmation(int orderId)
+        public async Task<IActionResult> History(int page = 1)
         {
-            var userId = GetCurrentUserId();
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return authCheck;
 
-            var order = await _context.OrderTables
-                .Where(o => o.Id == orderId && o.BuyerId == userId)
-                .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
+            var userId = GetCurrentUserId()!.Value;
+
+            const int pageSize = 10;
+            var totalOrders = await _context.OrderTables.CountAsync(o => o.BuyerId == userId);
+            var totalPages = (int)Math.Ceiling(totalOrders / (double)pageSize);
+
+            var orders = await _context.OrderTables
                 .Include(o => o.Address)
-                .Include(o => o.Payments)
-                .FirstOrDefaultAsync();
-
-            if (order == null)
-            {
-                TempData["Error"] = "Không tìm thấy đơn hàng.";
-                return RedirectToAction("History");
-            }
-
-            return View(order);
-        }
-
-        #endregion
-
-        #region Order Management
-
-        /// <summary>
-        /// GET: /Order/History - Lịch sử đơn hàng
-        /// </summary>
-        public async Task<IActionResult> History(int page = 1, int pageSize = 10)
-        {
-            var userId = GetCurrentUserId();
-
-            var query = _context.OrderTables
-                .Where(o => o.BuyerId == userId)
                 .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                .Include(o => o.Address)
+                    .ThenInclude(oi => oi.Product)
                 .Include(o => o.Payments)
                 .Include(o => o.ShippingInfos)
-                .OrderByDescending(o => o.OrderDate);
-
-            var totalOrders = await query.CountAsync();
-            var orders = await query
+                .Where(o => o.BuyerId == userId)
+                .OrderByDescending(o => o.OrderDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
             ViewBag.CurrentPage = page;
-            ViewBag.TotalPages = (int)Math.Ceiling((double)totalOrders / pageSize);
+            ViewBag.TotalPages = totalPages;
             ViewBag.TotalOrders = totalOrders;
 
             return View(orders);
         }
 
         /// <summary>
-        /// GET: /Order/Details/{orderId} - Chi tiết đơn hàng
+        /// GET: /Order/Details/{id} - Xem chi tiết đơn hàng
         /// </summary>
         public async Task<IActionResult> Details(int id)
         {
-            var userId = GetCurrentUserId();
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return authCheck;
+
+            var userId = GetCurrentUserId()!.Value;
 
             var order = await _context.OrderTables
-                .Where(o => o.Id == id && o.BuyerId == userId)
-                .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                .ThenInclude(p => p.Category)
                 .Include(o => o.Address)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
                 .Include(o => o.Payments)
                 .Include(o => o.ShippingInfos)
-                .Include(o => o.ReturnRequests)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(o => o.Id == id && o.BuyerId == userId);
 
             if (order == null)
             {
@@ -420,31 +357,37 @@ namespace Group1_PRN222.Controllers
         }
 
         /// <summary>
-        /// POST: /Order/Cancel/{orderId} - Hủy đơn hàng
+        /// POST: /Order/Cancel/{id} - Hủy đơn hàng
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> Cancel(int orderId)
+        public async Task<IActionResult> Cancel(int id, string reason = "")
         {
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return Json(new { success = false, message = "Vui lòng đăng nhập để tiếp tục." });
+
+            var userId = GetCurrentUserId()!.Value;
+
             try
             {
-                var userId = GetCurrentUserId();
-
                 var order = await _context.OrderTables
-                    .Where(o => o.Id == orderId && o.BuyerId == userId)
                     .Include(o => o.OrderItems)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(o => o.Id == id && o.BuyerId == userId);
 
                 if (order == null)
                 {
                     return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
                 }
 
-                if (order.Status != "Pending" && order.Status != "Confirmed")
+                if (order.Status != "Pending")
                 {
                     return Json(new { success = false, message = "Không thể hủy đơn hàng này." });
                 }
 
-                // Hoàn lại tồn kho
+                // Update order status
+                order.Status = "Cancelled";
+
+                // Restore inventory
                 foreach (var item in order.OrderItems)
                 {
                     var inventory = await _context.Inventories
@@ -457,14 +400,100 @@ namespace Group1_PRN222.Controllers
                     }
                 }
 
-                order.Status = "Cancelled";
                 await _context.SaveChangesAsync();
 
-                return Json(new { success = true, message = "Đã hủy đơn hàng thành công." });
+                return Json(new { success = true, message = "Hủy đơn hàng thành công!" });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Có lỗi xảy ra: " + ex.Message });
+                return Json(new { success = false, message = $"Có lỗi xảy ra: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// GET: /Order/Return/{id} - Trang yêu cầu hoàn trả
+        /// </summary>
+        public async Task<IActionResult> Return(int id)
+        {
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return authCheck;
+
+            var userId = GetCurrentUserId()!.Value;
+
+            var order = await _context.OrderTables
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .FirstOrDefaultAsync(o => o.Id == id && o.BuyerId == userId);
+
+            if (order == null)
+            {
+                TempData["Error"] = "Không tìm thấy đơn hàng.";
+                return RedirectToAction("History");
+            }
+
+            if (order.Status != "Delivered")
+            {
+                TempData["Error"] = "Chỉ có thể yêu cầu hoàn trả đơn hàng đã giao thành công.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            return View(order);
+        }
+
+        /// <summary>
+        /// POST: /Order/Return/{id} - Gửi yêu cầu hoàn trả
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> Return(int id, string reason)
+        {
+            // Check authentication first
+            var authCheck = RedirectToLoginIfNotAuthenticated();
+            if (authCheck != null) return Json(new { success = false, message = "Vui lòng đăng nhập để tiếp tục." });
+
+            var userId = GetCurrentUserId()!.Value;
+
+            try
+            {
+                var order = await _context.OrderTables
+                    .FirstOrDefaultAsync(o => o.Id == id && o.BuyerId == userId);
+
+                if (order == null)
+                {
+                    return Json(new { success = false, message = "Không tìm thấy đơn hàng." });
+                }
+
+                if (order.Status != "Delivered")
+                {
+                    return Json(new { success = false, message = "Chỉ có thể yêu cầu hoàn trả đơn hàng đã giao thành công." });
+                }
+
+                // Check if return request already exists
+                var existingReturn = await _context.ReturnRequests
+                    .FirstOrDefaultAsync(r => r.OrderId == id);
+
+                if (existingReturn != null)
+                {
+                    return Json(new { success = false, message = "Đã tồn tại yêu cầu hoàn trả cho đơn hàng này." });
+                }
+
+                var returnRequest = new ReturnRequest
+                {
+                    OrderId = id,
+                    UserId = userId,
+                    Reason = reason,
+                    Status = "Pending",
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.ReturnRequests.Add(returnRequest);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, message = "Gửi yêu cầu hoàn trả thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Có lỗi xảy ra: {ex.Message}" });
             }
         }
 

@@ -1,44 +1,75 @@
 @{
-ViewData["Title"] = "Thanh toán đơn hàng";
-var cartItems = ViewBag.CartItems as List<Group1_PRN222.Models.CartItem>;
-var subtotal = (decimal)ViewBag.Subtotal;
-var shippingFee = (decimal)ViewBag.ShippingFee;
-var total = (decimal)ViewBag.Total;
-var defaultAddress = ViewBag.DefaultAddress as Group1_PRN222.Models.Address;
+    ViewData["Title"] = "Thanh toán";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    var cartItems = ViewBag.CartItems as List<Group1_PRN222.Models.CartItem>;
+    var userAddresses = ViewBag.UserAddresses as List<Group1_PRN222.Models.Address>;
+    var defaultAddress = ViewBag.DefaultAddress as Group1_PRN222.Models.Address;
+    var subtotal = (decimal)ViewBag.Subtotal;
+    var shippingFee = (decimal)ViewBag.ShippingFee;
+    var total = (decimal)ViewBag.Total;
 }
 
 <div class="container mt-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a href="/Cart">Giỏ hàng</a></li>
+                    <li class="breadcrumb-item active">Thanh toán</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold">🛒 Thanh toán đơn hàng</h2>
+        </div>
+    </div>
+
     <!-- Progress Steps -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
-                <div class="text-center flex-fill">
-                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        ✓
+                <div class="d-flex align-items-center">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px;">
+                        <small>1</small>
                     </div>
-                    <div class="small mt-2">Giỏ hàng</div>
-                </div>
-                <div class="flex-fill">
-                    <hr class="bg-success" style="height: 2px;">
-                </div>
-                <div class="text-center flex-fill">
-                    <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        2
+                    <div class="ms-2">
+                        <div class="fw-bold">Giỏ hàng</div>
+                        <div class="small text-success">Hoàn thành</div>
                     </div>
-                    <div class="small mt-2 fw-bold">Thanh toán</div>
                 </div>
-                <div class="flex-fill">
-                    <hr class="bg-secondary" style="height: 2px;">
-                </div>
-                <div class="text-center flex-fill">
-                    <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        3
+                <div class="flex-grow-1 mx-3" style="height: 2px; background-color: #28a745;"></div>
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px;">
+                        <small>2</small>
                     </div>
-                    <div class="small mt-2">Hoàn thành</div>
+                    <div class="ms-2">
+                        <div class="fw-bold">Thanh toán</div>
+                        <div class="small text-primary">Đang xử lý</div>
+                    </div>
+                </div>
+                <div class="flex-grow-1 mx-3" style="height: 2px; background-color: #e9ecef;"></div>
+                <div class="d-flex align-items-center">
+                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px;">
+                        <small>3</small>
+                    </div>
+                    <div class="ms-2">
+                        <div class="fw-bold">Hoàn thành</div>
+                        <div class="small mt-2">Chờ xử lý</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Error Messages -->
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>❌ Lỗi:</strong> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
 
     <div class="row">
         <!-- Main Checkout Form -->
@@ -50,318 +81,277 @@ var defaultAddress = ViewBag.DefaultAddress as Group1_PRN222.Models.Address;
                         <h5 class="mb-0">📍 Địa chỉ giao hàng</h5>
                     </div>
                     <div class="card-body">
-                        <input type="hidden" id="addressId" value="@defaultAddress.Id" />
-                        <div class="p-3 border rounded bg-light">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="fw-bold mb-1">@defaultAddress.FullName</h6>
-                                    <p class="mb-1 text-muted">📞 @defaultAddress.Phone</p>
-                                    <p class="mb-1">📍 @defaultAddress.Street</p>
-                                    <p class="mb-0">@defaultAddress.City, @defaultAddress.Country</p>
-                                    <span class="badge bg-success mt-2">Địa chỉ mặc định</span>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="selectedAddress"
-                                           value="@defaultAddress.Id" checked>
-                                </div>
-                            </div>
-                        </div>
+                        @if (userAddresses != null && userAddresses.Any())
+                        {
+                            <input type="hidden" id="selectedAddressId" value="@(defaultAddress?.Id ?? userAddresses.First().Id)" />
 
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-outline-primary btn-sm" disabled>
-                                + Thêm địa chỉ mới
-                            </button>
-                            <small class="text-muted d-block mt-1">
-                                * Chức năng quản lý địa chỉ sẽ có sau khi Member 1 hoàn thành
-                            </small>
-                        </div>
+                            @foreach (var address in userAddresses)
+                            {
+                                <div class="address-option mb-3">
+                                    <div class="p-3 border rounded @(address.IsDefault == true ? "border-primary bg-light" : "")">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="fw-bold mb-1">@address.FullName</h6>
+                                                <p class="mb-1 text-muted">📞 @address.Phone</p>
+                                                <p class="mb-1">📍 @address.Street</p>
+                                                <p class="mb-0">@address.City, @address.State, @address.Country</p>
+                                                @if (address.IsDefault == true)
+                                                {
+                                                    <span class="badge bg-success mt-2">Địa chỉ mặc định</span>
+                                                }
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input address-radio" type="radio"
+                                                       name="selectedAddress" value="@address.Id"
+                                                @(address.IsDefault == true || address == userAddresses.First() ? "checked" : "")>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="mt-3">
+                                <a href="/Account/Edit/@(ViewContext.HttpContext.Session.GetInt32("UserId"))"
+                                   class="btn btn-outline-primary btn-sm">
+                                    ➕ Thêm địa chỉ mới
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <h6>⚠️ Chưa có địa chỉ giao hàng</h6>
+                                <p class="mb-2">Bạn cần thêm ít nhất một địa chỉ giao hàng để tiếp tục đặt hàng.</p>
+                                <a href="/Account/Edit/@(ViewContext.HttpContext.Session.GetInt32("UserId"))"
+                                   class="btn btn-primary">
+                                    ➕ Thêm địa chỉ ngay
+                                </a>
+                            </div>
+                        }
                     </div>
                 </div>
 
                 <!-- Phương thức thanh toán -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">💳 Phương thức thanh toán</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="paymentMethod"
-                                           id="paypal" value="PayPal" checked>
-                                    <label class="form-check-label w-100" for="paypal">
-                                        <div class="p-3 border rounded h-100">
-                                            <div class="d-flex align-items-center">
-                                                <div class="me-3" style="font-size: 1.5rem;">💳</div>
-                                                <div>
-                                                    <h6 class="mb-1">PayPal</h6>
-                                                    <small class="text-muted">Thanh toán an toàn qua PayPal</small>
-                                                    <br><small class="text-warning">🧪 (Mô phỏng)</small>
-                                                </div>
-                                            </div>
+                @if (userAddresses != null && userAddresses.Any())
+                {
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">💳 Phương thức thanh toán</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="payment-option p-3 border rounded">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="paymentMethod"
+                                                   id="paymentCOD" value="COD" checked>
+                                            <label class="form-check-label fw-bold" for="paymentCOD">
+                                                🚚 Thanh toán khi nhận hàng (COD)
+                                            </label>
                                         </div>
-                                    </label>
+                                        <small class="text-muted">Bạn sẽ thanh toán khi nhận được hàng</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="payment-option p-3 border rounded">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="paymentMethod"
+                                                   id="paymentPayPal" value="PayPal">
+                                            <label class="form-check-label fw-bold" for="paymentPayPal">
+                                                💰 PayPal (Mô phỏng)
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Thanh toán online qua PayPal</small>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-6 mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="paymentMethod"
-                                           id="cod" value="COD">
-                                    <label class="form-check-label w-100" for="cod">
-                                        <div class="p-3 border rounded h-100">
-                                            <div class="d-flex align-items-center">
-                                                <div class="me-3" style="font-size: 1.5rem;">💰</div>
-                                                <div>
-                                                    <h6 class="mb-1">Thanh toán khi nhận hàng</h6>
-                                                    <small class="text-muted">Trả tiền mặt khi nhận hàng</small>
-                                                    <br><small class="text-success">✅ Miễn phí</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </label>
+                            <!-- PayPal Details (Hidden by default) -->
+                            <div id="paypalDetails" class="mt-3" style="display: none;">
+                                <div class="alert alert-info">
+                                    <h6>🔒 PayPal Checkout (Demo)</h6>
+                                    <p class="mb-2">Đây là chức năng mô phỏng. Trong thực tế sẽ redirect đến PayPal.</p>
+                                    <button type="button" class="btn btn-primary btn-sm">
+                                        Continue with PayPal →
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- PayPal Notice -->
-                        <div id="paypalNotice" class="alert alert-info mt-3">
-                            <strong>PayPal:</strong> Bạn sẽ được chuyển đến trang PayPal để hoàn tất thanh toán.
-                            <br><small class="text-muted">Đây là mô phỏng, không có giao dịch thật.</small>
+                    <!-- Ghi chú đơn hàng -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">📝 Ghi chú đơn hàng (tùy chọn)</h5>
                         </div>
-
-                        <div id="codNotice" class="alert alert-warning mt-3 d-none">
-                            <strong>COD:</strong> Vui lòng chuẩn bị số tiền chính xác khi nhận hàng.
-                            <br><small class="text-muted">Phí COD: Miễn phí</small>
+                        <div class="card-body">
+                            <textarea class="form-control" id="orderNotes" rows="3"
+                                      placeholder="Nhập ghi chú cho đơn hàng (ví dụ: giao hàng vào buổi chiều, gọi trước khi giao...)"></textarea>
                         </div>
                     </div>
-                </div>
-
-                <!-- Ghi chú đơn hàng -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">📝 Ghi chú đơn hàng</h5>
-                    </div>
-                    <div class="card-body">
-                        <textarea id="orderNotes" class="form-control" rows="3"
-                                  placeholder="Ghi chú cho người bán (tùy chọn)..."></textarea>
-                        <small class="text-muted">Ví dụ: Giao hàng sau 5h chiều, gọi trước khi giao...</small>
-                    </div>
-                </div>
+                }
             </form>
         </div>
 
         <!-- Order Summary -->
         <div class="col-lg-4">
-            <div class="card shadow-sm sticky-top" style="top: 20px;">
-                <div class="card-header bg-success text-white">
+            <div class="card shadow-sm position-sticky" style="top: 20px;">
+                <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">📋 Tóm tắt đơn hàng</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Cart Items Summary -->
-                    <div class="mb-3">
-                        <h6 class="text-muted mb-2">Sản phẩm (@cartItems.Count mặt hàng)</h6>
-                        <div style="max-height: 200px; overflow-y: auto;">
-                            @foreach (var item in cartItems.Take(3)) // Hiển thị tối đa 3 items
-                            {
-                            <div class="d-flex align-items-center mb-2 pb-2 border-bottom">
-                                <img src="@item.ImageUrl" alt="@item.ProductName"
-                                     class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
-                                <div class="flex-grow-1">
-                                    <div class="fw-bold small">@item.ProductName</div>
-                                    <div class="text-muted small">SL: @item.Quantity</div>
-                                </div>
-                                <div class="text-end">
-                                    <small class="fw-bold">@item.TotalPrice.ToString("N0") ₫</small>
+                    <!-- Cart Items -->
+                    @if (cartItems != null && cartItems.Any())
+                    {
+                        @foreach (var item in cartItems)
+                        {
+                            <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
+                                <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/images/placeholder.jpg" : item.ImageUrl)"
+                                     alt="@item.ProductName" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-1">@item.ProductName</h6>
+                                    <small class="text-muted">SL: @item.Quantity</small>
+                                    <div class="fw-bold text-primary">@item.TotalPrice.ToString("N0") ₫</div>
                                 </div>
                             </div>
-                            }
-                            @if (cartItems.Count > 3)
-                            {
-                            <div class="text-center">
-                                <small class="text-muted">và @(cartItems.Count - 3) sản phẩm khác...</small>
-                            </div>
-                            }
-                        </div>
-                    </div>
+                        }
+                    }
 
-                    <!-- Price Breakdown -->
-                    <div>
+                    <!-- Pricing Summary -->
+                    <div class="pricing-summary">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Tạm tính:</span>
-                            <span class="fw-bold">@subtotal.ToString("N0") ₫</span>
+                            <span>@subtotal.ToString("N0") ₫</span>
                         </div>
-
                         <div class="d-flex justify-content-between mb-2">
                             <span>Phí vận chuyển:</span>
-                            @if (shippingFee > 0)
-                            {
-                            <span class="fw-bold">@shippingFee.ToString("N0") ₫</span>
-                            }
-                            else
-                            {
-                            <span class="text-success fw-bold">Miễn phí</span>
-                            }
+                            <span>@shippingFee.ToString("N0") ₫</span>
                         </div>
-
-                        @if (shippingFee == 0 && subtotal >= 500000)
-                        {
-                        <div class="alert alert-success p-2 mb-2">
-                            <small>🎉 Miễn phí ship cho đơn hàng từ 500.000₫</small>
-                        </div>
-                        }
-
                         <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <strong class="fs-5">Tổng cộng:</strong>
-                            <strong class="fs-5 text-danger">@total.ToString("N0") ₫</strong>
+                        <div class="d-flex justify-content-between fw-bold fs-5">
+                            <span>Tổng cộng:</span>
+                            <span class="text-danger">@total.ToString("N0") ₫</span>
                         </div>
                     </div>
 
-                    <!-- Checkout Button -->
-                    <button type="button" class="btn btn-success w-100 btn-lg mb-3" onclick="submitCheckout()">
-                        <span id="checkoutBtnText">Đặt hàng ngay</span>
-                        <span id="checkoutSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
-                    </button>
-
-                    <a href="/Cart" class="btn btn-outline-secondary w-100">
-                        ← Quay lại giỏ hàng
-                    </a>
-
-                    <!-- Security Notice -->
-                    <div class="mt-3 p-2 bg-light rounded">
-                        <small class="text-muted">
-                            🔒 Thông tin của bạn được bảo mật và mã hóa
-                        </small>
-                    </div>
+                    <!-- Action Buttons -->
+                    @if (userAddresses != null && userAddresses.Any())
+                    {
+                        <div class="mt-4">
+                            <button type="button" id="btnPlaceOrder" class="btn btn-danger btn-lg w-100 mb-2">
+                                🛒 Đặt hàng ngay
+                            </button>
+                            <a href="/Cart" class="btn btn-outline-secondary w-100">
+                                ← Quay lại giỏ hàng
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mt-4">
+                            <button type="button" class="btn btn-secondary btn-lg w-100" disabled>
+                                Cần thêm địa chỉ để đặt hàng
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Success Modal -->
-<div class="modal fade" id="successModal" tabindex="-1">
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">✅ Đặt hàng thành công!</h5>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <div class="text-success" style="font-size: 48px;">🛍️</div>
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
-                <h6>Đơn hàng đã được tạo thành công!</h6>
-                <p class="text-muted mb-2">Mã đơn hàng: <span id="orderIdDisplay" class="fw-bold text-primary"></span></p>
-                <p class="small text-muted">Bạn sẽ được chuyển đến trang thanh toán trong giây lát...</p>
-            </div>
-            <div class="modal-footer justify-content-center">
-                <button type="button" class="btn btn-success" onclick="goToPayment()">
-                    Thanh toán ngay
-                </button>
+                <h5>Đang xử lý đơn hàng...</h5>
+                <p class="text-muted">Vui lòng đợi trong giây lát</p>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-<script>
-    let currentOrderId = 0;
-    let currentPaymentMethod = 'PayPal';
+    <script>
+        $(document).ready(function() {
+            // Handle address selection
+            $('.address-radio').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#selectedAddressId').val($(this).val());
 
-    // Payment method change handler
-    document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            currentPaymentMethod = this.value;
-            updatePaymentNotice();
-        });
-    });
-
-    function updatePaymentNotice() {
-        const paypalNotice = document.getElementById('paypalNotice');
-        const codNotice = document.getElementById('codNotice');
-
-        if (currentPaymentMethod === 'PayPal') {
-            paypalNotice.classList.remove('d-none');
-            codNotice.classList.add('d-none');
-        } else {
-            paypalNotice.classList.add('d-none');
-            codNotice.classList.remove('d-none');
-        }
-    }
-
-    // Submit checkout
-    async function submitCheckout() {
-        const addressId = document.getElementById('addressId').value;
-        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-        const notes = document.getElementById('orderNotes').value;
-
-        // Show loading
-        const btn = document.querySelector('button[onclick="submitCheckout()"]');
-        const btnText = document.getElementById('checkoutBtnText');
-        const spinner = document.getElementById('checkoutSpinner');
-
-        btnText.textContent = 'Đang xử lý...';
-        spinner.classList.remove('d-none');
-        btn.disabled = true;
-
-        try {
-            const response = await fetch('/Order/Checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    addressId: addressId,
-                    paymentMethod: paymentMethod,
-                    notes: notes
-                })
+                    // Update visual selection
+                    $('.address-option .border').removeClass('border-primary bg-light');
+                    $(this).closest('.address-option').find('.border').addClass('border-primary bg-light');
+                }
             });
 
-            const result = await response.json();
+            // Handle payment method selection
+            $('input[name="paymentMethod"]').change(function() {
+                if ($(this).val() === 'PayPal') {
+                    $('#paypalDetails').slideDown();
+                } else {
+                    $('#paypalDetails').slideUp();
+                }
+            });
 
-            if (result.success) {
-                currentOrderId = result.orderId;
-                document.getElementById('orderIdDisplay').textContent = '#' + result.orderId;
+            // Handle place order
+            $('#btnPlaceOrder').click(function() {
+                var addressId = $('#selectedAddressId').val();
+                var paymentMethod = $('input[name="paymentMethod"]:checked').val();
+                var notes = $('#orderNotes').val();
 
-                // Show success modal
-                const modal = new bootstrap.Modal(document.getElementById('successModal'));
-                modal.show();
+                if (!addressId) {
+                    alert('Vui lòng chọn địa chỉ giao hàng!');
+                    return;
+                }
 
-                // Auto redirect after 3 seconds
-                setTimeout(() => {
-                    window.location.href = result.redirectUrl;
-                }, 3000);
+                if (!paymentMethod) {
+                    alert('Vui lòng chọn phương thức thanh toán!');
+                    return;
+                }
 
-            } else {
-                alert('Lỗi: ' + result.message);
-                resetButton();
+                // Show loading
+                $('#loadingModal').modal('show');
+
+                // Submit order
+                $.ajax({
+                    url: '/Order/Checkout',
+                    type: 'POST',
+                    data: {
+                        addressId: addressId,
+                        paymentMethod: paymentMethod,
+                        notes: notes,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        $('#loadingModal').modal('hide');
+
+                        if (response.success) {
+                            // Show success message
+                            alert('✅ ' + response.message);
+
+                            // Redirect to order details
+                            window.location.href = '/Order/Details/' + response.orderId;
+                        } else {
+                            alert('❌ ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#loadingModal').modal('hide');
+                        alert('❌ Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
+                        console.error('Error:', error);
+                    }
+                });
+            });
+
+            // Add anti-forgery token
+            if (!$('input[name="__RequestVerificationToken"]').length) {
+                $('body').append('@Html.AntiForgeryToken()');
             }
-        } catch (error) {
-            alert('Có lỗi xảy ra: ' + error.message);
-            resetButton();
-        }
-    }
-
-    function resetButton() {
-        const btn = document.querySelector('button[onclick="submitCheckout()"]');
-        const btnText = document.getElementById('checkoutBtnText');
-        const spinner = document.getElementById('checkoutSpinner');
-
-        btnText.textContent = 'Đặt hàng ngay';
-        spinner.classList.add('d-none');
-        btn.disabled = false;
-    }
-
-    function goToPayment() {
-        if (currentOrderId > 0) {
-            window.location.href = `/Order/Payment/${currentOrderId}?method=${currentPaymentMethod}`;
-        }
-    }
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        updatePaymentNotice();
-    });
-</script>
+        });
+    </script>
 }
