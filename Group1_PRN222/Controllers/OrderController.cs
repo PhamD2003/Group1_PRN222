@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Group1_PRN222.Models;
+using Group1_PRN222.Services;
 using System.Text.Json;
 
 namespace Group1_PRN222.Controllers
@@ -9,11 +10,14 @@ namespace Group1_PRN222.Controllers
     public class OrderController : Controller
     {
         private readonly CloneEbayDbContext _context;
+        private readonly ICouponService _couponService;
         private const string CART_SESSION_KEY = "Cart";
+        private const string COUPON_SESSION_KEY = "AppliedCoupon";
 
-        public OrderController(CloneEbayDbContext context)
+        public OrderController(CloneEbayDbContext context, ICouponService couponService)
         {
             _context = context;
+            _couponService = couponService;
         }
 
         #region Authentication & Address Methods (Updated - Real Implementation)
@@ -76,6 +80,171 @@ namespace Group1_PRN222.Controllers
                 return RedirectToAction("Login", "Account");
             }
             return null!; // Continue with normal flow
+        }
+
+        #endregion
+
+        #region Coupon Management (AJAX Endpoints)
+
+        /// <summary>
+        /// POST: /Order/ValidateCoupon - Validate coupon code via AJAX
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> ValidateCoupon(string couponCode)
+        {
+            try
+            {
+                var cartItems = GetCartItemsFromSession();
+                if (!cartItems.Any())
+                {
+                    return Json(new { success = false, message = "Giỏ hàng trống." });
+                }
+
+                var result = await _couponService.ValidateCouponAsync(couponCode, cartItems);
+
+                if (result.IsValid)
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        message = result.SuccessMessage,
+                        discountAmount = result.DiscountAmount,
+                        discountPercent = result.DiscountPercent,
+                        couponCode = result.Coupon?.Code,
+                        isProductSpecific = result.Coupon?.ProductId.HasValue ?? false,
+                        productName = result.Coupon?.Product?.Title
+                    });
+                }
+                else
+                {
+                    return Json(new { success = false, message = result.ErrorMessage });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Có lỗi xảy ra khi kiểm tra mã giảm giá." });
+            }
+        }
+
+        /// <summary>
+        /// POST: /Order/ApplyCoupon - Apply coupon to session
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> ApplyCoupon(string couponCode)
+        {
+            try
+            {
+                var cartItems = GetCartItemsFromSession();
+                if (!cartItems.Any())
+                {
+                    return Json(new { success = false, message = "Giỏ hàng trống." });
+                }
+
+                var result = await _couponService.ValidateCouponAsync(couponCode, cartItems);
+
+                if (result.IsValid)
+                {
+                    // Store coupon in session
+                    HttpContext.Session.SetString(COUPON_SESSION_KEY, couponCode);
+
+                    // Calculate new totals
+                    decimal subtotal = cartItems.Sum(item => item.TotalPrice);
+                    decimal discountAmount = result.DiscountAmount;
+                    decimal shippingFee = CalculateShippingFee(cartItems);
+                    decimal total = subtotal - discountAmount + shippingFee;
+
+                    return Json(new
+                    {
+                        success = true,
+                        message = result.SuccessMessage,
+                        discountAmount = discountAmount,
+                        subtotal = subtotal,
+                        shippingFee = shippingFee,
+                        total = total,
+                        couponCode = couponCode,
+                        discountPercent = result.DiscountPercent,
+                        isProductSpecific = result.Coupon?.ProductId.HasValue ?? false
+                    });
+                }
+                else
+                {
+                    return Json(new { success = false, message = result.ErrorMessage });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Có lỗi xảy ra khi áp dụng mã giảm giá." });
+            }
+        }
+
+        /// <summary>
+        /// POST: /Order/RemoveCoupon - Remove coupon from session
+        /// </summary>
+        [HttpPost]
+        public IActionResult RemoveCoupon()
+        {
+            try
+            {
+                HttpContext.Session.Remove(COUPON_SESSION_KEY);
+
+                var cartItems = GetCartItemsFromSession();
+                decimal subtotal = cartItems.Sum(item => item.TotalPrice);
+                decimal shippingFee = CalculateShippingFee(cartItems);
+                decimal total = subtotal + shippingFee;
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Đã gỡ bỏ mã giảm giá",
+                    subtotal = subtotal,
+                    shippingFee = shippingFee,
+                    total = total,
+                    discountAmount = 0
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Có lỗi xảy ra khi gỡ bỏ mã giảm giá." });
+            }
+        }
+
+        /// <summary>
+        /// GET: /Order/GetAvailableCoupons - Get available coupons for user
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableCoupons()
+        {
+            try
+            {
+                var cartItems = GetCartItemsFromSession();
+                var activeCoupons = await _couponService.GetActiveCouponsAsync();
+
+                // Filter coupons that apply to current cart
+                var applicableCoupons = new List<object>();
+
+                foreach (var coupon in activeCoupons)
+                {
+                    var result = await _couponService.ValidateCouponAsync(coupon.Code ?? "", cartItems);
+                    if (result.IsValid)
+                    {
+                        applicableCoupons.Add(new
+                        {
+                            Code = coupon.Code,
+                            DiscountPercent = coupon.DiscountPercent,
+                            Description = result.SuccessMessage,
+                            EstimatedDiscount = result.DiscountAmount,
+                            IsProductSpecific = coupon.ProductId.HasValue,
+                            ProductName = coupon.Product?.Title
+                        });
+                    }
+                }
+
+                return Json(new { success = true, coupons = applicableCoupons });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Có lỗi xảy ra khi lấy danh sách mã giảm giá." });
+            }
         }
 
         #endregion
@@ -169,17 +338,40 @@ namespace Group1_PRN222.Controllers
                 return RedirectToAction("Edit", "Account", new { id = userId });
             }
 
+            // Handle coupon if applied
+            string? appliedCouponCode = HttpContext.Session.GetString(COUPON_SESSION_KEY);
+            decimal discountAmount = 0;
+            CouponValidationResult? couponResult = null;
+
+            if (!string.IsNullOrEmpty(appliedCouponCode))
+            {
+                couponResult = await _couponService.ValidateCouponAsync(appliedCouponCode, cartItems);
+                if (couponResult.IsValid)
+                {
+                    discountAmount = couponResult.DiscountAmount;
+                }
+                else
+                {
+                    // Remove invalid coupon from session
+                    HttpContext.Session.Remove(COUPON_SESSION_KEY);
+                    TempData["Warning"] = "Mã giảm giá đã hết hạn và được gỡ bỏ.";
+                }
+            }
+
             // Tính toán chi phí
             decimal subtotal = cartItems.Sum(item => item.TotalPrice);
             decimal shippingFee = CalculateShippingFee(cartItems);
-            decimal total = subtotal + shippingFee;
+            decimal total = subtotal - discountAmount + shippingFee;
 
             ViewBag.CartItems = cartItems;
             ViewBag.Subtotal = subtotal;
+            ViewBag.DiscountAmount = discountAmount;
             ViewBag.ShippingFee = shippingFee;
             ViewBag.Total = total;
             ViewBag.UserAddresses = userAddresses;
             ViewBag.DefaultAddress = defaultAddress;
+            ViewBag.CouponResult = couponResult;
+            ViewBag.AppliedCouponCode = appliedCouponCode;
 
             return View();
         }
@@ -214,10 +406,25 @@ namespace Group1_PRN222.Controllers
                     return Json(new { success = false, message = "Địa chỉ không hợp lệ." });
                 }
 
+                // Handle coupon discount
+                string? appliedCouponCode = HttpContext.Session.GetString(COUPON_SESSION_KEY);
+                decimal discountAmount = 0;
+                string? couponDescription = null;
+
+                if (!string.IsNullOrEmpty(appliedCouponCode))
+                {
+                    var couponResult = await _couponService.ValidateCouponAsync(appliedCouponCode, cartItems);
+                    if (couponResult.IsValid)
+                    {
+                        discountAmount = couponResult.DiscountAmount;
+                        couponDescription = couponResult.SuccessMessage;
+                    }
+                }
+
                 // Calculate total
                 decimal subtotal = cartItems.Sum(item => item.TotalPrice);
                 decimal shippingFee = CalculateShippingFee(cartItems);
-                decimal total = subtotal + shippingFee;
+                decimal total = subtotal - discountAmount + shippingFee;
 
                 // Create order
                 var order = new OrderTable

@@ -1,5 +1,6 @@
 ﻿using Group1_PRN222.Controllers;
 using Group1_PRN222.Models;
+using Group1_PRN222.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Group1_PRN222;
@@ -26,6 +27,8 @@ public class Program
             options.Cookie.HttpOnly = true; // Cookie chỉ truy cập qua HTTP, không qua client-side script
             options.Cookie.IsEssential = true; // Cần thiết cho chức năng
         });
+        builder.Services.AddScoped<ICouponService, CouponService>();
+
         builder.Services.AddDbContext<CloneEbayDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
