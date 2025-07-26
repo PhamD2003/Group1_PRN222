@@ -1,4 +1,5 @@
 ﻿using Group1_PRN222.Controllers;
+using Group1_PRN222.Hubs;
 using Group1_PRN222.Models;
 using Group1_PRN222.Services;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();
-
+        builder.Services.AddSignalR();
         // Add email sender service
         builder.Services.AddTransient<IEmailSender, EmailSender>();
 
@@ -52,7 +53,7 @@ public class Program
         app.MapControllerRoute(
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}");
-
+        app.MapHub<AuctionHub>("/auctionHub");
         app.Run();
     }
 }

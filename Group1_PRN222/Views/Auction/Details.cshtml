@@ -100,5 +100,36 @@
         </div>
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/auctionHub?productId=@Model.Id")
+        .build();
+
+    connection.on("ReceiveBid", function (username, amount) {
+        const bidList = document.querySelector(".list-group");
+        const newBidItem = document.createElement("div");
+        newBidItem.className = "list-group-item d-flex justify-content-between align-items-center";
+        newBidItem.innerHTML = `
+                <div>
+                    <strong class="text-danger">${amount.toLocaleString()} VNĐ</strong>
+                    bởi người dùng: <strong>${username}</strong>
+                </div>
+                <small class="text-muted">${new Date().toLocaleString()}</small>
+            `;
+
+        if (bidList) {
+            bidList.prepend(newBidItem);
+        }
+
+        // Cập nhật giá hiện tại
+        const currentPriceElement = document.querySelector(".text-success span");
+        if (currentPriceElement) {
+            currentPriceElement.textContent = amount.toLocaleString() + " VNĐ";
+        }
+    });
+
+    connection.start().catch(err => console.error(err));
+</script>
 
 

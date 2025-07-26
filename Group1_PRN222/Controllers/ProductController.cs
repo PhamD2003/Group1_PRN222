@@ -67,7 +67,7 @@ namespace Group1_PRN222.Controllers
 
 
         // GET: /Product/Details/5
-        public IActionResult Details(int id)
+        public IActionResult Details(int id, int? rating)
         {
             var product = _context.Products
                 .Include(p => p.Category)
@@ -85,14 +85,31 @@ namespace Group1_PRN222.Controllers
             ViewBag.Bids = bids;
             ViewBag.CurrentPrice = bids.FirstOrDefault()?.Amount ?? product.StartPrice;
 
-            // ... nếu có Related sản phẩm
+            // Lọc đánh giá nếu có rating
+            if (rating.HasValue)
+            {
+                product.Reviews = product.Reviews
+                    .Where(r => r.Rating == rating.Value)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .ToList();
+            }
+            else
+            {
+                product.Reviews = product.Reviews
+                    .OrderByDescending(r => r.CreatedAt)
+                    .ToList();
+            }
+
+            // Gán lại ViewBag nếu có liên quan
             ViewBag.Related = _context.Products
-                .Where(p => p.CategoryId == product.CategoryId && p.Id != id).Include(p => p.Inventories)
+                .Where(p => p.CategoryId == product.CategoryId && p.Id != id)
+                .Include(p => p.Inventories)
                 .Take(4)
                 .ToList();
 
             return View(product);
         }
+
 
     }
 }

@@ -1,5 +1,7 @@
-﻿using Group1_PRN222.Models;
+﻿using Group1_PRN222.Hubs;
+using Group1_PRN222.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Group1_PRN222.Controllers
@@ -7,10 +9,11 @@ namespace Group1_PRN222.Controllers
     public class AuctionController : Controller
     {
         private readonly CloneEbayDbContext _context;
-
-        public AuctionController(CloneEbayDbContext context)
+        private readonly IHubContext<AuctionHub> _hubContext;
+        public AuctionController(CloneEbayDbContext context, IHubContext<AuctionHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // 1. Hiển thị danh sách sản phẩm đang đấu giá
@@ -38,23 +41,16 @@ namespace Group1_PRN222.Controllers
 
         // 3. Đặt giá đấu
         [HttpPost]
-        public IActionResult Bid(int productId, decimal amount)
+        public async Task<IActionResult> Bid(int productId, decimal amount)
         {
             var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return RedirectToAction("Login", "Account");
 
-            if (userId == null)
-                return RedirectToAction("Login", "Account");
-
+            var user = _context.Users.FirstOrDefault(u => u.Id == userId);
             var product = _context.Products.FirstOrDefault(p => p.Id == productId);
-            if (product == null)
+            if (product == null || product.AuctionEndTime <= DateTime.Now)
             {
-                TempData["Error"] = "Sản phẩm không tồn tại.";
-                return RedirectToAction("Details", new { id = productId });
-            }
-
-            if (product.AuctionEndTime <= DateTime.Now)
-            {
-                TempData["Error"] = "Phiên đấu giá đã kết thúc.";
+                TempData["Error"] = "Sản phẩm không tồn tại hoặc đã kết thúc.";
                 return RedirectToAction("Details", new { id = productId });
             }
 
@@ -63,21 +59,11 @@ namespace Group1_PRN222.Controllers
                 .OrderByDescending(b => b.Amount)
                 .FirstOrDefault();
 
-            if (highestBid == null)
+            if ((highestBid == null && amount < product.StartPrice) ||
+                (highestBid != null && amount <= highestBid.Amount))
             {
-                if (amount < product.StartPrice)
-                {
-                    TempData["Error"] = $"Giá phải tối thiểu từ giá khởi điểm: {product.StartPrice?.ToString("N0")} VNĐ";
-                    return RedirectToAction("Details", new { id = productId });
-                }
-            }
-            else
-            {
-                if (amount <= highestBid.Amount)
-                {
-                    TempData["Error"] = $"Giá phải cao hơn giá hiện tại: {highestBid.Amount?.ToString("N0")} VNĐ";
-                    return RedirectToAction("Details", new { id = productId });
-                }
+                TempData["Error"] = "Giá đấu không hợp lệ.";
+                return RedirectToAction("Details", new { id = productId });
             }
 
             var bid = new Bid
@@ -91,8 +77,13 @@ namespace Group1_PRN222.Controllers
             _context.Bids.Add(bid);
             _context.SaveChanges();
 
+            await _hubContext.Clients
+                .Group($"Product_{productId}")
+                .SendAsync("ReceiveBid", user.Username, amount);
+
             return RedirectToAction("Details", new { id = productId });
         }
+
 
 
 

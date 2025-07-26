@@ -4,22 +4,22 @@
     ViewData["Title"] = "Addresses";
 }
 
-<h1>Addresses</h1>
+
 
 <p>
-    <a asp-action="Create" class="btn btn-primary">Create New Address</a>
+    <a asp-action="Create" class="btn btn-primary">Tạo địa chỉ mới</a>
 </p>
 <form asp-action="SetDefault" method="post">
     <table class="table">
         <thead>
             <tr>
                 <th></th>
-                <th>Full Name</th>
-                <th>Phone</th>
-                <th>Street</th>
-                <th>City</th>
-                <th>State</th>
-                <th>Country</th>
+                <th>Họ và tên</th>
+                <th>Số diện thoại</th>
+                <th>Đường</th>
+                <th>Thành phố</th>
+                <th>Tỉnh</th>
+                <th>Quốc gia</th>
                 <th></th>
             </tr>
         </thead>
@@ -37,13 +37,13 @@
                     <td>@item.State</td>
                     <td>@item.Country</td>
                     <td>
-                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">Edit</a>
-                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-info">Details</a>
-                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">Delete</a>
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">Cập nhật</a>
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-info">Chi tiết</a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">Xóa</a>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
-    <button type="submit" class="btn btn-success">Set as Default</button>
+    <button type="submit" class="btn btn-success">Đặt mặc định</button>
 </form>

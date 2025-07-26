@@ -19,18 +19,31 @@ public class AddressesController : Controller
     }
 
     // GET: Addresses
+    // GET: Addresses
     public async Task<IActionResult> Index()
     {
-        var addresses = await _context.Addresses.ToListAsync();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        var addresses = await _context.Addresses
+            .Where(a => a.UserId == userId)
+            .ToListAsync();
+
         return View(addresses);
     }
+
 
     // GET: Addresses/Details/5
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null)
             return NotFound();
-
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return RedirectToAction("Login", "Account");
         var address = await _context.Addresses
             .FirstOrDefaultAsync(m => m.Id == id);
         if (address == null)
@@ -120,7 +133,9 @@ public class AddressesController : Controller
     {
         if (id == null)
             return NotFound();
-
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return RedirectToAction("Login", "Account");
         var address = await _context.Addresses
             .FirstOrDefaultAsync(m => m.Id == id);
         if (address == null)
@@ -135,12 +150,23 @@ public class AddressesController : Controller
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var address = await _context.Addresses.FindAsync(id);
-        if (address != null)
-            _context.Addresses.Remove(address);
+        if (address == null)
+            return NotFound();
 
+        // Check if the address is used in any order
+        bool isInUse = await _context.OrderTables.AnyAsync(o => o.AddressId == id);
+        if (isInUse)
+        {
+            TempData["Error"] = "Không thể xóa địa chỉ bởi vì đang dùng để đặt sản phẩm";
+            return RedirectToAction(nameof(Delete));
+        }
+
+        _context.Addresses.Remove(address);
         await _context.SaveChangesAsync();
+
         return RedirectToAction(nameof(Index));
     }
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]

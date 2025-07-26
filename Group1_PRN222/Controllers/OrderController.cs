@@ -500,7 +500,45 @@ namespace Group1_PRN222.Controllers
                 return Json(new { success = false, message = $"Có lỗi xảy ra: {ex.Message}" });
             }
         }
+        [HttpGet("/Order/Create/{productId}")]
+        public async Task<IActionResult> Create(int productId)
+        {
+            var product = await _context.Products
+                .Include(p => p.Inventories)
+                .FirstOrDefaultAsync(p => p.Id == productId);
 
+            if (product == null)
+            {
+                TempData["Error"] = "Sản phẩm không tồn tại.";
+                return RedirectToAction("Index", "Product");
+            }
+
+            var inventory = product.Inventories.FirstOrDefault();
+            if (inventory == null || inventory.Quantity <= 0)
+            {
+                TempData["Error"] = "Sản phẩm đã hết hàng.";
+                return RedirectToAction("Details", "Product", new { id = productId });
+            }
+
+            // Tạo một danh sách giỏ hàng tạm thời chỉ chứa sản phẩm đó
+            var tempCart = new List<CartItem>
+    {
+        new CartItem
+        {
+            ProductId = product.Id,
+            ProductName = product.Title,
+            Quantity = 1,
+            Price = product.Price ?? 0,
+             ImageUrl = product.Images?.Split(',').FirstOrDefault() ?? string.Empty,
+        }
+    };
+
+            // Lưu vào session (ghi đè session Cart cũ)
+            HttpContext.Session.SetString("Cart", JsonSerializer.Serialize(tempCart));
+
+            // Redirect tới trang checkout như bình thường
+            return RedirectToAction("Checkout");
+        }
         /// <summary>
         /// GET: /Order/History - Xem lịch sử đơn hàng
         /// </summary>
